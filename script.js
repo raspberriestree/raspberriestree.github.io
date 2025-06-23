@@ -120,25 +120,25 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // ========= AUTENTICACIÓN =========
-  async function handleLogin(email, password) {
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      appState.currentUser = {
-        username: userCredential.user.email,
-        name: userCredential.user.displayName || userCredential.user.email.split('@')[0],
-        role: 'admin'
-      };
-      appState.isViewOnlyMode = false;
-      updateUI();
-      loadInitialData();
-      showAppScreen();
-      return true;
-    } catch (error) {
-      console.error("Error de autenticación:", error);
-      alert("Credenciales incorrectas o error de conexión");
-      return false;
-    }
+async function handleLogin(email, password) {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    appState.currentUser = {
+      username: userCredential.user.email,
+      name: userCredential.user.displayName || userCredential.user.email.split('@')[0],
+      role: 'admin' // Asignar rol de admin por defecto
+    };
+    appState.isViewOnlyMode = false;
+    updateUI();
+    loadInitialData();
+    showAppScreen();
+    return true;
+  } catch (error) {
+    console.error("Error de autenticación:", error);
+    alert("Credenciales incorrectas o error de conexión");
+    return false;
   }
+}
 
   async function handleLogout() {
     try {
