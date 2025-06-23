@@ -47,5 +47,12 @@
         <div id="squadsTable"></div>
     </div>
     <script src="script.js"></script>
+
+    <script type="module">
+        import { firebaseConfig } from './firebase-config.js';
+        window.firebaseConfig = firebaseConfig;
+    </script>
+    <script type="module" src="script.js"></script>
+
 </body>
 </html>
