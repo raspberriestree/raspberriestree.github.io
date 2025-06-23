@@ -1,0 +1,426 @@
+/* styles.css - Versión Final Corregida */
+
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f5f5f5;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+h1 {
+  text-align: center;
+  color: #333;
+}
+
+.controls {
+  margin: 20px 0;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+button {
+  padding: 8px 16px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+/* ===== ESTILOS PRINCIPALES DE LA TABLA ===== */
+#squadsTable {
+  width: 100%;
+  overflow-x: auto;
+  margin: 20px 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+#squadsTable table {
+  width: 100%;
+  min-width: 900px;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+#squadsTable th, 
+#squadsTable td {
+  padding: 10px 12px;
+  text-align: left;
+  border: 1px solid #ddd;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#squadsTable th {
+  background-color: #f2f2f2;
+  position: sticky;
+  top: 0;
+}
+
+/* Asignación de anchos específicos */
+#squadsTable th:nth-child(1),
+#squadsTable td:nth-child(1) { width: 15%; } /* Escuadrón */
+#squadsTable th:nth-child(2),
+#squadsTable td:nth-child(2) { width: 20%; } /* Miembro */
+#squadsTable th:nth-child(3),
+#squadsTable td:nth-child(3) { width: 15%; } /* Rango */
+#squadsTable th:nth-child(4),
+#squadsTable td:nth-child(4) { width: 10%; } /* Asesinatos */
+#squadsTable th:nth-child(5),
+#squadsTable td:nth-child(5) { width: 10%; } /* Muertes */
+#squadsTable th:nth-child(6),
+#squadsTable td:nth-child(6) { width: 10%; } /* Misiones */
+#squadsTable th:nth-child(7),
+#squadsTable td:nth-child(7) { 
+  width: 20%;
+  min-width: 150px;
+  max-width: 150px;
+  text-align: center;
+}
+
+/* Inputs numéricos */
+#squadsTable input[type="number"] {
+  width: 70px;
+  padding: 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  text-align: center;
+  display: block;
+  margin: 0 auto;
+}
+
+/* ===== MODO EDICIÓN ===== */
+.editable-name,
+.editable-rank,
+.editable-squad-name {
+  position: relative;
+  height: 100%;
+}
+
+.editable-name input[type="text"],
+.editable-squad-name input[type="text"] {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(100% - 24px);
+  margin: 0 12px;
+  padding: 6px;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: inherit;
+}
+
+.editable-rank select {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(100% - 24px);
+  margin: 0 12px;
+  padding: 6px;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007CB2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 10px;
+  font-size: inherit;
+}
+
+/* ===== ESTILOS DE FILAS ESPECIALES ===== */
+.squad-header {
+  font-weight: bold;
+}
+
+.member-row {
+  background-color: rgba(255,255,255,0.7);
+}
+
+.squad-total {
+  font-weight: bold;
+  background-color: rgba(223,240,216,0.7);
+}
+
+/* ===== BOTONES DE ACCIÓN ===== */
+.delete-squad, 
+.change-color {
+  margin: 4px;
+  padding: 6px 10px;
+  font-size: 0.8em;
+  white-space: nowrap;
+  display: inline-block;
+  width: calc(50% - 8px);
+  box-sizing: border-box;
+}
+
+.delete-squad {
+  background-color: #e74c3c;
+}
+
+.delete-squad:hover {
+  background-color: #c0392b;
+}
+
+.change-color {
+  background-color: #3498db;
+}
+
+.change-color:hover {
+  background-color: #2980b9;
+}
+
+/* ===== ESTILOS DE LOGIN ===== */
+.login-container {
+  max-width: 400px;
+  margin: 50px auto;
+  padding: 20px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.hidden {
+  display: none;
+}
+
+.user-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #f2f2f2;
+  border-radius: 4px;
+}
+
+.admin-only {
+  display: none;
+}
+
+.role-admin .admin-only {
+  display: inline-block;
+}
+
+.readonly-input {
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  pointer-events: none;
+}
+
+.welcome-container {
+  max-width: 500px;
+  margin: 100px auto;
+  padding: 40px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.1);
+  text-align: center;
+}
+
+.welcome-container h1 {
+  margin-bottom: 40px;
+  color: #2c3e50;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.options button {
+  padding: 12px 24px;
+  font-size: 18px;
+}
+
+#viewOnlyBtn {
+  background-color: #3498db;
+}
+
+#viewOnlyBtn:hover {
+  background-color: #2980b9;
+}
+
+#editTableBtn {
+  background-color: #2ecc71;
+}
+
+#editTableBtn:hover {
+  background-color: #27ae60;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+#cancelLogin {
+  background-color: #e74c3c;
+}
+
+#cancelLogin:hover {
+  background-color: #c0392b;
+}
+
+.editable-rank {
+  position: relative;
+  height: 100%;
+}
+
+.editable-rank select {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 8px 25px 8px 8px;
+  border: 1px solid #3498db;
+  border-radius: 4px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: white;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20d%3D%22M6%209l-4-4h8z%22%20fill%3D%22%233498db%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 12px;
+  font-size: inherit;
+  font-family: inherit;
+  color: #333;
+  cursor: pointer;
+  z-index: 2;
+  opacity: 0; /* Hacemos el select transparente pero clickeable */
+}
+
+.editable-rank::after {
+  content: attr(data-value);
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 1;
+  padding-right: 20px;
+}
+
+.editable-rank:focus-within {
+  outline: 2px solid #3498db;
+  outline-offset: 2px;
+}
+
+/* Asegurar que el select permanezca abierto al hacer clic */
+.editable-rank select:focus {
+  opacity: 1; /* Hacemos visible el select cuando está enfocado */
+  height: auto;
+  min-height: 100%;
+}
+
+.global-totals {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.global-totals h3 {
+    margin-top: 0;
+    color: #2c3e50;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 10px;
+}
+
+.totals-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.totals-grid div {
+    padding: 10px;
+    background-color: white;
+    border-radius: 4px;
+    border: 1px solid #eee;
+}
+
+.totals-grid input[type="number"] {
+    width: 70px;
+    padding: 6px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-align: center;
+}
+
+#squadsTable {
+    display: flex;
+    flex-direction: column;
+}
+
+#squadsTable table {
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+#squadsTable td, #squadsTable th {
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Asegurar que las celdas ocupen el espacio correcto */
+#squadsTable td, #squadsTable th {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+}
+
+/* Alinear contenido de celdas combinadas */
+[colspan] {
+    text-align: center;
+}
+
+/* Estilo para celdas vacías */
+td:empty::before {
+    content: " ";
+    display: inline-block;
+}
