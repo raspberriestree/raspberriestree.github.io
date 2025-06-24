@@ -1,4 +1,4 @@
-// Configuración de Firebase
+// Configuración de Firebase (debes crear firebase-config.js)
 import { firebaseConfig } from './firebase-config.js';
 
 // Importaciones de Firebase
@@ -132,7 +132,6 @@ document.addEventListener('DOMContentLoaded', function() {
       updateUI();
       loadInitialData();
       showAppScreen();
-      dom.loginForm.reset();
       return true;
     } catch (error) {
       console.error("Error de autenticación:", error);
@@ -152,43 +151,67 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // ========= MANEJO DE DATOS =========
-  async function loadInitialData() {
-    try {
-      const docRef = doc(db, "militaryData", "squads");
-      const docSnap = await getDoc(docRef);
+async function loadInitialData() {
+  try {
+    console.log("Intentando cargar datos desde Firebase...");
+    
+    // 1. Intento de carga desde Firebase
+    const docRef = doc(db, "militaryData", "squads");
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      console.log("Datos encontrados en Firebase");
+      const data = docSnap.data();
       
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        appState.squadsData = data.squadsData || [];
-        appState.totalMissionsOverride = data.totalMissionsOverride || null;
-        
-        appState.squadsData.forEach(squad => {
-          if (!squad.color) {
-            const defaultColor = squadColors[0];
-            squad.color = defaultColor.value;
-            squad.textColor = getContrastColor(defaultColor.value);
-          }
-        });
-      } else {
-        loadDefaultData();
-        await saveData();
-      }
+      // Procesar datos recibidos
+      appState.squadsData = data.squadsData || [];
+      appState.totalMissionsOverride = data.totalMissionsOverride || null;
       
-      // Escucha cambios en tiempo real
-      onSnapshot(docRef, (doc) => {
-        if (doc.exists()) {
-          const data = doc.data();
-          appState.squadsData = data.squadsData || [];
-          appState.totalMissionsOverride = data.totalMissionsOverride || null;
-          renderTable();
-        }
-      });
+      // Actualizar localStorage como caché
+      localStorage.setItem('squadsDataBackup', JSON.stringify({
+        squadsData: appState.squadsData,
+        totalMissionsOverride: appState.totalMissionsOverride,
+        lastUpdated: new Date().toISOString()
+      }));
       
-    } catch (error) {
-      console.error("Error al cargar datos:", error);
-      loadDefaultData();
+      // Configurar listener en tiempo real con manejo de errores
+      setupRealtimeListener(docRef);
+      
+    } else {
+      console.log("No existe documento en Firebase, creando uno nuevo");
+      await initializeFirebaseData();
     }
+    
+    renderTable();
+    
+  } catch (firebaseError) {
+    console.error("Error al cargar desde Firebase:", firebaseError);
+    
+    // 2. Fallback: Intentar cargar desde localStorage
+    try {
+      const localData = localStorage.getItem('squadsDataBackup');
+      if (localData) {
+        const parsedData = JSON.parse(localData);
+        console.log("Cargando datos desde caché local");
+        
+        appState.squadsData = parsedData.squadsData || [];
+        appState.totalMissionsOverride = parsedData.totalMissionsOverride || null;
+        
+        renderTable();
+        showTemporaryMessage("Usando datos locales (última versión guardada)");
+        return;
+      }
+    } catch (localError) {
+      console.error("Error al cargar desde localStorage:", localError);
+    }
+    
+    // 3. Fallback final: Cargar datos por defecto
+    console.log("Cargando datos por defecto");
+    loadDefaultData();
+    renderTable();
+    showTemporaryMessage("Error al conectar con el servidor. Usando datos de ejemplo.");
   }
+}
 
   function loadDefaultData() {
     appState.squadsData = [
@@ -209,21 +232,174 @@ document.addEventListener('DOMContentLoaded', function() {
     appState.totalMissionsOverride = null;
   }
 
-  async function saveData() {
-    try {
-      const dataToSave = {
-        squadsData: appState.squadsData,
-        totalMissionsOverride: appState.totalMissionsOverride,
-        lastUpdated: new Date().toISOString()
-      };
-      
-      await setDoc(doc(db, "militaryData", "squads"), dataToSave);
-      console.log("Datos guardados en Firebase");
-    } catch (error) {
-      console.error("Error al guardar:", error);
-      alert("Error al guardar los datos. Revisa la consola para más detalles.");
+    async function saveData() {
+        // Preparar datos para guardar
+        const dataToSave = {
+            squadsData: appState.squadsData,
+            totalMissionsOverride: appState.totalMissionsOverride,
+            lastUpdated: new Date().toISOString()
+        };
+    
+        try {
+            // 1. Intento de guardar en Firebase
+            console.log("Intentando guardar en Firebase...");
+            await setDoc(doc(db, "militaryData", "squads"), dataToSave);
+            console.log("Datos guardados exitosamente en Firebase");
+        
+            // 2. Actualizar caché local
+            localStorage.setItem('squadsDataBackup', JSON.stringify(dataToSave));
+            console.log("Datos guardados en caché local");
+            
+            // Mostrar notificación de éxito
+            showTemporaryMessage("Datos guardados exitosamente", "success");
+        
+        } catch (firebaseError) {
+            console.error("Error al guardar en Firebase:", firebaseError);
+            
+            // 3. Fallback: Guardar localmente
+            try {
+            localStorage.setItem('squadsDataBackup', JSON.stringify(dataToSave));
+            console.log("Datos guardados localmente como fallback");
+                
+            // Mostrar advertencia
+            showTemporaryMessage(
+                "Datos guardados localmente. Se sincronizarán cuando se restablezca la conexión.", 
+                "warning"
+            );
+        
+            // Programar reintento
+            if (!appState.pendingSync) {
+                appState.pendingSync = true;
+                setTimeout(retryPendingSync, 30000); // Reintentar en 30 segundos
+            }
+        
+            } catch (localError) {
+            console.error("Error al guardar en localStorage:", localError);
+            showTemporaryMessage("Error al guardar los datos", "error");
+            }
+        }
     }
-  }
+
+    // ===== FUNCIONES AUXILIARES =====
+
+    async function initializeFirebaseData() {
+    const initialData = {
+        squadsData: [
+        {
+            name: "Escuadrón Alfa",
+            color: squadColors[0].value,
+            textColor: getContrastColor(squadColors[0].value),
+            colonel: "Coronel Rodríguez",
+            colonelRank: "Coronel",
+            members: [
+            { name: "Soldado Pérez", rank: "Cabo", kills: 12, deaths: 2, missions: 15 },
+            { name: "Soldado Gómez", rank: "Cabo Primero", kills: 8, deaths: 3, missions: 12 },
+            { name: "Soldado López", rank: "Sargento", kills: 15, deaths: 1, missions: 18 },
+            { name: "Soldado Martínez", rank: "Teniente", kills: 5, deaths: 4, missions: 10 }
+            ]
+        }
+        ],
+        totalMissionsOverride: null,
+        createdAt: new Date().toISOString()
+    };
+    
+    await setDoc(doc(db, "militaryData", "squads"), initialData);
+    appState.squadsData = initialData.squadsData;
+    }
+
+    function setupRealtimeListener(docRef) {
+        // Limpiar listener anterior si existe
+        if (appState.unsubscribeSnapshot) {
+            appState.unsubscribeSnapshot();
+        }
+        
+        appState.unsubscribeSnapshot = onSnapshot(docRef, 
+            (doc) => {
+            if (doc.exists()) {
+                    const data = doc.data();
+                    console.log("Cambios recibidos en tiempo real");
+                    
+                    appState.squadsData = data.squadsData || [];
+                    appState.totalMissionsOverride = data.totalMissionsOverride || null;
+                    
+                    // Actualizar caché local
+                    localStorage.setItem('squadsDataBackup', JSON.stringify({
+                    squadsData: appState.squadsData,
+                    totalMissionsOverride: appState.totalMissionsOverride,
+                    lastUpdated: new Date().toISOString()
+                    }));
+                    
+                    renderTable();
+                }
+            },
+            (error) => {
+                console.error("Error en listener en tiempo real:", error);
+                
+                if (error.code === 'permission-denied') {
+                    showTemporaryMessage("Se perdieron los permisos. Por favor inicia sesión nuevamente.", "error");
+                    handleLogout();
+                } else {
+                    showTemporaryMessage("Error en conexión en tiempo real. Usando datos locales.", "warning");
+                }
+            }
+        );
+    }
+
+    async function retryPendingSync() {
+        if (!appState.pendingSync) return;
+        
+        try {
+            const localData = localStorage.getItem('squadsDataBackup');
+            if (localData) {
+            const dataToSave = JSON.parse(localData);
+            await setDoc(doc(db, "militaryData", "squads"), dataToSave);
+            
+            console.log("Datos pendientes sincronizados exitosamente");
+            appState.pendingSync = false;
+            showTemporaryMessage("Datos pendientes sincronizados con el servidor", "success");
+            }
+        } catch (error) {
+            console.error("Error en reintento de sincronización:", error);
+            // Volver a programar reintento
+            setTimeout(retryPendingSync, 60000); // Reintentar en 1 minuto
+        }
+    }
+
+    function showTemporaryMessage(message, type = "info") {
+        const messageDiv = document.createElement('div');
+        messageDiv.textContent = message;
+        messageDiv.style.position = 'fixed';
+        messageDiv.style.bottom = '20px';
+        messageDiv.style.right = '20px';
+        messageDiv.style.padding = '10px 20px';
+        messageDiv.style.borderRadius = '4px';
+        messageDiv.style.zIndex = '1000';
+    
+        switch (type) {
+            case "success":
+            messageDiv.style.backgroundColor = '#4CAF50';
+            messageDiv.style.color = 'white';
+            break;
+            case "error":
+            messageDiv.style.backgroundColor = '#f44336';
+            messageDiv.style.color = 'white';
+            break;
+            case "warning":
+            messageDiv.style.backgroundColor = '#ff9800';
+            messageDiv.style.color = 'white';
+            break;
+            default:
+            messageDiv.style.backgroundColor = '#2196F3';
+            messageDiv.style.color = 'white';
+        }
+        
+        document.body.appendChild(messageDiv);
+    
+    // Auto-eliminar después de 5 segundos
+        setTimeout(() => {
+            messageDiv.remove();
+        }, 5000);
+    }
 
   function calculateGlobalTotals() {
     let totalKills = 0;
@@ -322,18 +498,16 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('input[type="number"]').forEach(input => {
       input.addEventListener('change', function() {
         const squadIndex = parseInt(this.dataset.squad);
-        const memberIndex = this.dataset.member;
+        const memberIndex = parseInt(this.dataset.member);
         const statType = this.dataset.type;
         const value = parseInt(this.value) || 0;
 
-        if (memberIndex === "colonel") {
-          // No hay estadísticas para el coronel
-        } else if (memberIndex >= 0) {
+        if (memberIndex >= 0) {
           appState.squadsData[squadIndex].members[memberIndex][statType] = value;
         } else if (this.id === 'totalMissionsInput') {
           appState.totalMissionsOverride = value;
         }
-        saveData();
+        saveData(); // Guarda automáticamente al cambiar valores
       });
     });
 
@@ -376,8 +550,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.editable-rank').forEach(el => {
       el.addEventListener('click', function() {
         const squadIndex = parseInt(this.dataset.squad);
-        const memberIndex = parseInt(this.dataset.member);
-        startEditingRank(this, squadIndex, memberIndex);
+        const memberType = this.dataset.member;
+        startEditingRank(this, squadIndex, memberType);
       });
     });
   }
@@ -400,7 +574,8 @@ document.addEventListener('DOMContentLoaded', function() {
     squadColors.forEach((color, index) => {
       if (color.isCustom) {
         colorOptions += `
-          <div class="color-option" data-action="custom" data-squad="${squadIndex}">
+          <div style="padding: 10px; margin: 5px; border-radius: 4px; cursor: pointer; border: 1px dashed #ccc;"
+               onclick="window.applyCustomColorPrompt(${squadIndex})">
             <div style="display: flex; align-items: center;">
               <div style="width: 20px; height: 20px; background: ${color.value || '#fff'}; border: 1px solid #000; margin-right: 10px;"></div>
               ${color.name} (HEX)
@@ -408,9 +583,10 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>`;
       } else {
         colorOptions += `
-          <div class="color-option" data-action="apply" data-squad="${squadIndex}" data-color="${index}"
-               style="background: ${color.value}; color: ${color.textColor}; 
-                      ${appState.squadsData[squadIndex].color === color.value ? 'border: 2px solid black;' : ''}">
+          <div style="background: ${color.value}; color: ${color.textColor}; 
+                      padding: 10px; margin: 5px; border-radius: 4px; cursor: pointer;
+                      ${appState.squadsData[squadIndex].color === color.value ? 'border: 2px solid black;' : ''}"
+               onclick="window.applyColorChange(${squadIndex}, ${index})">
             ${color.name}
           </div>`;
       }
@@ -423,7 +599,7 @@ document.addEventListener('DOMContentLoaded', function() {
           ${colorOptions}
         </div>
         <div id="customColorSection" style="margin-top: 20px;"></div>
-        <button id="cancelColorPicker" 
+        <button onclick="window.closeColorPicker()" 
                 style="padding: 8px 16px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;">
           Cancelar
         </button>
@@ -432,88 +608,80 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.body.appendChild(modal);
     
-    // Manejar clics en opciones de color
-    modal.querySelectorAll('.color-option[data-action="apply"]').forEach(option => {
-      option.addEventListener('click', () => {
-        const squadIdx = parseInt(option.dataset.squad);
-        const colorIdx = parseInt(option.dataset.color);
-        appState.squadsData[squadIdx].color = squadColors[colorIdx].value;
-        appState.squadsData[squadIdx].textColor = squadColors[colorIdx].textColor;
-        saveData();
-        modal.remove();
+    // Funciones globales temporales
+    window.applyColorChange = function(squadIndex, colorIndex) {
+      appState.squadsData[squadIndex].color = squadColors[colorIndex].value;
+      appState.squadsData[squadIndex].textColor = squadColors[colorIndex].textColor;
+      saveData();
+      window.closeColorPicker();
+    };
+    
+    window.applyCustomColorPrompt = function(squadIndex) {
+      const customSection = modal.querySelector('#customColorSection');
+      customSection.innerHTML = `
+        <div style="margin-bottom: 10px;">
+          <label style="display: block; margin-bottom: 5px;">Ingresa código HEX (ej: #FF5733):</label>
+          <input type="text" id="customColorInput" placeholder="#RRGGBB" 
+                 style="padding: 8px; width: 100%; box-sizing: border-box;"
+                 pattern="^#[0-9A-Fa-f]{6}$" title="Formato HEX (ej: #FF5733)">
+        </div>
+        <div id="colorPreview" style="width: 100%; height: 40px; margin: 10px 0; border: 1px solid #ccc; 
+                                    display: flex; align-items: center; justify-content: center;">
+          Previsualización
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <button onclick="window.applyCustomColor(${squadIndex})" 
+                  style="padding: 8px 16px; background: #2ecc71; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            Aplicar
+          </button>
+          <button onclick="window.clearCustomColor()" 
+                  style="padding: 8px 16px; background: #f39c12; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            Limpiar
+          </button>
+        </div>
+      `;
+      
+      document.getElementById('customColorInput').addEventListener('input', function() {
+        const colorPreview = document.getElementById('colorPreview');
+        if (this.value.match(/^#[0-9A-Fa-f]{6}$/i)) {
+          colorPreview.style.backgroundColor = this.value;
+          colorPreview.style.color = getContrastColor(this.value);
+          colorPreview.textContent = this.value;
+        } else {
+          colorPreview.style.backgroundColor = '#fff';
+          colorPreview.style.color = '#000';
+          colorPreview.textContent = 'Formato inválido';
+        }
       });
-    });
-    
-    // Manejar opción personalizada
-    modal.querySelectorAll('.color-option[data-action="custom"]').forEach(option => {
-      option.addEventListener('click', () => {
-        showCustomColorPicker(modal, parseInt(option.dataset.squad));
-      });
-    });
-    
-    // Botón cancelar
-    modal.querySelector('#cancelColorPicker').addEventListener('click', () => {
-      modal.remove();
-    });
-  }
-
-  function showCustomColorPicker(modal, squadIndex) {
-    const customSection = modal.querySelector('#customColorSection');
-    customSection.innerHTML = `
-      <div style="margin-bottom: 10px;">
-        <label style="display: block; margin-bottom: 5px;">Ingresa código HEX (ej: #FF5733):</label>
-        <input type="text" id="customColorInput" placeholder="#RRGGBB" 
-               style="padding: 8px; width: 100%; box-sizing: border-box;"
-               pattern="^#[0-9A-Fa-f]{6}$" title="Formato HEX (ej: #FF5733)">
-      </div>
-      <div id="colorPreview" style="width: 100%; height: 40px; margin: 10px 0; border: 1px solid #ccc; 
-                                  display: flex; align-items: center; justify-content: center;">
-        Previsualización
-      </div>
-      <div style="display: flex; justify-content: space-between;">
-        <button id="applyCustomColor" 
-                style="padding: 8px 16px; background: #2ecc71; color: white; border: none; border-radius: 4px; cursor: pointer;">
-          Aplicar
-        </button>
-        <button id="clearCustomColor" 
-                style="padding: 8px 16px; background: #f39c12; color: white; border: none; border-radius: 4px; cursor: pointer;">
-          Limpiar
-        </button>
-      </div>
-    `;
-    
-    const colorInput = customSection.querySelector('#customColorInput');
-    const colorPreview = customSection.querySelector('#colorPreview');
-    
-    colorInput.addEventListener('input', function() {
-      if (this.value.match(/^#[0-9A-Fa-f]{6}$/i)) {
-        colorPreview.style.backgroundColor = this.value;
-        colorPreview.style.color = getContrastColor(this.value);
-        colorPreview.textContent = this.value;
-      } else {
+      
+      window.applyCustomColor = function(squadIndex) {
+        const input = document.getElementById('customColorInput');
+        if (input.value.match(/^#[0-9A-Fa-f]{6}$/i)) {
+          appState.squadsData[squadIndex].color = input.value;
+          appState.squadsData[squadIndex].textColor = getContrastColor(input.value);
+          saveData();
+          window.closeColorPicker();
+        } else {
+          alert('Por favor ingresa un código HEX válido (ejemplo: #FF5733)');
+        }
+      };
+      
+      window.clearCustomColor = function() {
+        document.getElementById('customColorInput').value = '';
+        const colorPreview = document.getElementById('colorPreview');
         colorPreview.style.backgroundColor = '#fff';
         colorPreview.style.color = '#000';
-        colorPreview.textContent = 'Formato inválido';
-      }
-    });
+        colorPreview.textContent = 'Previsualización';
+      };
+    };
     
-    customSection.querySelector('#applyCustomColor').addEventListener('click', function() {
-      if (colorInput.value.match(/^#[0-9A-Fa-f]{6}$/i)) {
-        appState.squadsData[squadIndex].color = colorInput.value;
-        appState.squadsData[squadIndex].textColor = getContrastColor(colorInput.value);
-        saveData();
-        modal.remove();
-      } else {
-        alert('Por favor ingresa un código HEX válido (ejemplo: #FF5733)');
-      }
-    });
-    
-    customSection.querySelector('#clearCustomColor').addEventListener('click', function() {
-      colorInput.value = '';
-      colorPreview.style.backgroundColor = '#fff';
-      colorPreview.style.color = '#000';
-      colorPreview.textContent = 'Previsualización';
-    });
+    window.closeColorPicker = function() {
+      modal.remove();
+      // Limpiar funciones globales
+      ['applyColorChange', 'applyCustomColorPrompt', 'applyCustomColor', 'clearCustomColor', 'closeColorPicker'].forEach(fn => {
+        delete window[fn];
+      });
+    };
   }
 
   function startEditingSquadName(element, squadIndex) {
@@ -565,53 +733,39 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  function startEditingRank(element, squadIndex, memberIndex) {
-    const currentRank = appState.squadsData[squadIndex].members[memberIndex].rank;
+  function startEditingRank(element, squadIndex, memberType) {
+    // No permitir editar el rango del coronel
+    if (memberType === 'colonel') {
+      return;
+    }
+
+    const currentRank = appState.squadsData[squadIndex].members[parseInt(memberType)].rank;
     
-    // Crear contenedor para el select
-    const container = document.createElement('div');
-    container.style.position = 'absolute';
-    container.style.left = '0';
-    container.style.top = '0';
-    container.style.width = '100%';
-    container.style.height = '100%';
-    container.style.zIndex = '10';
+    element.setAttribute('data-value', currentRank);
     
-    // Crear el select
-    const select = document.createElement('select');
-    select.style.width = '100%';
-    select.style.height = '100%';
-    select.style.padding = '8px';
-    select.style.border = '1px solid #3498db';
-    select.style.borderRadius = '4px';
-    select.style.backgroundColor = 'white';
-    select.style.fontSize = 'inherit';
-    
-    // Añadir opciones
+    let options = '';
     ranks.forEach(rank => {
-      const option = document.createElement('option');
-      option.value = rank;
-      option.textContent = rank;
-      if (rank === currentRank) option.selected = true;
-      select.appendChild(option);
+      options += `<option value="${rank}" ${rank === currentRank ? 'selected' : ''}>${rank}</option>`;
     });
     
-    // Manejar cambios
+    element.innerHTML = `
+      <select onblur="this.dispatchEvent(new Event('change'))">
+        ${options}
+      </select>
+    `;
+    const select = element.querySelector('select');
+    
+    setTimeout(() => {
+      select.focus();
+      select.size = select.length > 5 ? 5 : select.length;
+    }, 0);
+    
     select.addEventListener('change', () => {
-      appState.squadsData[squadIndex].members[memberIndex].rank = select.value;
+      const newRank = select.value;
+      element.setAttribute('data-value', newRank);
+      appState.squadsData[squadIndex].members[parseInt(memberType)].rank = newRank;
       saveData();
-      renderTable();
     });
-    
-    // Manejar pérdida de foco
-    select.addEventListener('blur', () => {
-      renderTable();
-    });
-    
-    container.appendChild(select);
-    element.innerHTML = '';
-    element.appendChild(container);
-    select.focus();
   }
 
   // ========= EVENT LISTENERS =========
