@@ -1,4 +1,4 @@
-// Configuración de Firebase (debes crear firebase-config.js)
+// Configuración de Firebase
 import { firebaseConfig } from './firebase-config.js';
 
 // Importaciones de Firebase
@@ -120,25 +120,26 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // ========= AUTENTICACIÓN =========
-async function handleLogin(email, password) {
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    appState.currentUser = {
-      username: userCredential.user.email,
-      name: userCredential.user.displayName || userCredential.user.email.split('@')[0],
-      role: 'admin' // Asignar rol de admin por defecto
-    };
-    appState.isViewOnlyMode = false;
-    updateUI();
-    loadInitialData();
-    showAppScreen();
-    return true;
-  } catch (error) {
-    console.error("Error de autenticación:", error);
-    alert("Credenciales incorrectas o error de conexión");
-    return false;
+  async function handleLogin(email, password) {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      appState.currentUser = {
+        username: userCredential.user.email,
+        name: userCredential.user.displayName || userCredential.user.email.split('@')[0],
+        role: 'admin'
+      };
+      appState.isViewOnlyMode = false;
+      updateUI();
+      loadInitialData();
+      showAppScreen();
+      dom.loginForm.reset();
+      return true;
+    } catch (error) {
+      console.error("Error de autenticación:", error);
+      alert("Credenciales incorrectas o error de conexión");
+      return false;
+    }
   }
-}
 
   async function handleLogout() {
     try {
@@ -321,16 +322,18 @@ async function handleLogin(email, password) {
     document.querySelectorAll('input[type="number"]').forEach(input => {
       input.addEventListener('change', function() {
         const squadIndex = parseInt(this.dataset.squad);
-        const memberIndex = parseInt(this.dataset.member);
+        const memberIndex = this.dataset.member;
         const statType = this.dataset.type;
         const value = parseInt(this.value) || 0;
 
-        if (memberIndex >= 0) {
+        if (memberIndex === "colonel") {
+          // No hay estadísticas para el coronel
+        } else if (memberIndex >= 0) {
           appState.squadsData[squadIndex].members[memberIndex][statType] = value;
         } else if (this.id === 'totalMissionsInput') {
           appState.totalMissionsOverride = value;
         }
-        saveData(); // Guarda automáticamente al cambiar valores
+        saveData();
       });
     });
 
@@ -373,8 +376,8 @@ async function handleLogin(email, password) {
     document.querySelectorAll('.editable-rank').forEach(el => {
       el.addEventListener('click', function() {
         const squadIndex = parseInt(this.dataset.squad);
-        const memberType = this.dataset.member;
-        startEditingRank(this, squadIndex, memberType);
+        const memberIndex = parseInt(this.dataset.member);
+        startEditingRank(this, squadIndex, memberIndex);
       });
     });
   }
@@ -397,8 +400,7 @@ async function handleLogin(email, password) {
     squadColors.forEach((color, index) => {
       if (color.isCustom) {
         colorOptions += `
-          <div style="padding: 10px; margin: 5px; border-radius: 4px; cursor: pointer; border: 1px dashed #ccc;"
-               onclick="window.applyCustomColorPrompt(${squadIndex})">
+          <div class="color-option" data-action="custom" data-squad="${squadIndex}">
             <div style="display: flex; align-items: center;">
               <div style="width: 20px; height: 20px; background: ${color.value || '#fff'}; border: 1px solid #000; margin-right: 10px;"></div>
               ${color.name} (HEX)
@@ -406,10 +408,9 @@ async function handleLogin(email, password) {
           </div>`;
       } else {
         colorOptions += `
-          <div style="background: ${color.value}; color: ${color.textColor}; 
-                      padding: 10px; margin: 5px; border-radius: 4px; cursor: pointer;
-                      ${appState.squadsData[squadIndex].color === color.value ? 'border: 2px solid black;' : ''}"
-               onclick="window.applyColorChange(${squadIndex}, ${index})">
+          <div class="color-option" data-action="apply" data-squad="${squadIndex}" data-color="${index}"
+               style="background: ${color.value}; color: ${color.textColor}; 
+                      ${appState.squadsData[squadIndex].color === color.value ? 'border: 2px solid black;' : ''}">
             ${color.name}
           </div>`;
       }
@@ -422,7 +423,7 @@ async function handleLogin(email, password) {
           ${colorOptions}
         </div>
         <div id="customColorSection" style="margin-top: 20px;"></div>
-        <button onclick="window.closeColorPicker()" 
+        <button id="cancelColorPicker" 
                 style="padding: 8px 16px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px;">
           Cancelar
         </button>
@@ -431,80 +432,88 @@ async function handleLogin(email, password) {
     
     document.body.appendChild(modal);
     
-    // Funciones globales temporales
-    window.applyColorChange = function(squadIndex, colorIndex) {
-      appState.squadsData[squadIndex].color = squadColors[colorIndex].value;
-      appState.squadsData[squadIndex].textColor = squadColors[colorIndex].textColor;
-      saveData();
-      window.closeColorPicker();
-    };
-    
-    window.applyCustomColorPrompt = function(squadIndex) {
-      const customSection = modal.querySelector('#customColorSection');
-      customSection.innerHTML = `
-        <div style="margin-bottom: 10px;">
-          <label style="display: block; margin-bottom: 5px;">Ingresa código HEX (ej: #FF5733):</label>
-          <input type="text" id="customColorInput" placeholder="#RRGGBB" 
-                 style="padding: 8px; width: 100%; box-sizing: border-box;"
-                 pattern="^#[0-9A-Fa-f]{6}$" title="Formato HEX (ej: #FF5733)">
-        </div>
-        <div id="colorPreview" style="width: 100%; height: 40px; margin: 10px 0; border: 1px solid #ccc; 
-                                    display: flex; align-items: center; justify-content: center;">
-          Previsualización
-        </div>
-        <div style="display: flex; justify-content: space-between;">
-          <button onclick="window.applyCustomColor(${squadIndex})" 
-                  style="padding: 8px 16px; background: #2ecc71; color: white; border: none; border-radius: 4px; cursor: pointer;">
-            Aplicar
-          </button>
-          <button onclick="window.clearCustomColor()" 
-                  style="padding: 8px 16px; background: #f39c12; color: white; border: none; border-radius: 4px; cursor: pointer;">
-            Limpiar
-          </button>
-        </div>
-      `;
-      
-      document.getElementById('customColorInput').addEventListener('input', function() {
-        const colorPreview = document.getElementById('colorPreview');
-        if (this.value.match(/^#[0-9A-Fa-f]{6}$/i)) {
-          colorPreview.style.backgroundColor = this.value;
-          colorPreview.style.color = getContrastColor(this.value);
-          colorPreview.textContent = this.value;
-        } else {
-          colorPreview.style.backgroundColor = '#fff';
-          colorPreview.style.color = '#000';
-          colorPreview.textContent = 'Formato inválido';
-        }
+    // Manejar clics en opciones de color
+    modal.querySelectorAll('.color-option[data-action="apply"]').forEach(option => {
+      option.addEventListener('click', () => {
+        const squadIdx = parseInt(option.dataset.squad);
+        const colorIdx = parseInt(option.dataset.color);
+        appState.squadsData[squadIdx].color = squadColors[colorIdx].value;
+        appState.squadsData[squadIdx].textColor = squadColors[colorIdx].textColor;
+        saveData();
+        modal.remove();
       });
-      
-      window.applyCustomColor = function(squadIndex) {
-        const input = document.getElementById('customColorInput');
-        if (input.value.match(/^#[0-9A-Fa-f]{6}$/i)) {
-          appState.squadsData[squadIndex].color = input.value;
-          appState.squadsData[squadIndex].textColor = getContrastColor(input.value);
-          saveData();
-          window.closeColorPicker();
-        } else {
-          alert('Por favor ingresa un código HEX válido (ejemplo: #FF5733)');
-        }
-      };
-      
-      window.clearCustomColor = function() {
-        document.getElementById('customColorInput').value = '';
-        const colorPreview = document.getElementById('colorPreview');
+    });
+    
+    // Manejar opción personalizada
+    modal.querySelectorAll('.color-option[data-action="custom"]').forEach(option => {
+      option.addEventListener('click', () => {
+        showCustomColorPicker(modal, parseInt(option.dataset.squad));
+      });
+    });
+    
+    // Botón cancelar
+    modal.querySelector('#cancelColorPicker').addEventListener('click', () => {
+      modal.remove();
+    });
+  }
+
+  function showCustomColorPicker(modal, squadIndex) {
+    const customSection = modal.querySelector('#customColorSection');
+    customSection.innerHTML = `
+      <div style="margin-bottom: 10px;">
+        <label style="display: block; margin-bottom: 5px;">Ingresa código HEX (ej: #FF5733):</label>
+        <input type="text" id="customColorInput" placeholder="#RRGGBB" 
+               style="padding: 8px; width: 100%; box-sizing: border-box;"
+               pattern="^#[0-9A-Fa-f]{6}$" title="Formato HEX (ej: #FF5733)">
+      </div>
+      <div id="colorPreview" style="width: 100%; height: 40px; margin: 10px 0; border: 1px solid #ccc; 
+                                  display: flex; align-items: center; justify-content: center;">
+        Previsualización
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <button id="applyCustomColor" 
+                style="padding: 8px 16px; background: #2ecc71; color: white; border: none; border-radius: 4px; cursor: pointer;">
+          Aplicar
+        </button>
+        <button id="clearCustomColor" 
+                style="padding: 8px 16px; background: #f39c12; color: white; border: none; border-radius: 4px; cursor: pointer;">
+          Limpiar
+        </button>
+      </div>
+    `;
+    
+    const colorInput = customSection.querySelector('#customColorInput');
+    const colorPreview = customSection.querySelector('#colorPreview');
+    
+    colorInput.addEventListener('input', function() {
+      if (this.value.match(/^#[0-9A-Fa-f]{6}$/i)) {
+        colorPreview.style.backgroundColor = this.value;
+        colorPreview.style.color = getContrastColor(this.value);
+        colorPreview.textContent = this.value;
+      } else {
         colorPreview.style.backgroundColor = '#fff';
         colorPreview.style.color = '#000';
-        colorPreview.textContent = 'Previsualización';
-      };
-    };
+        colorPreview.textContent = 'Formato inválido';
+      }
+    });
     
-    window.closeColorPicker = function() {
-      modal.remove();
-      // Limpiar funciones globales
-      ['applyColorChange', 'applyCustomColorPrompt', 'applyCustomColor', 'clearCustomColor', 'closeColorPicker'].forEach(fn => {
-        delete window[fn];
-      });
-    };
+    customSection.querySelector('#applyCustomColor').addEventListener('click', function() {
+      if (colorInput.value.match(/^#[0-9A-Fa-f]{6}$/i)) {
+        appState.squadsData[squadIndex].color = colorInput.value;
+        appState.squadsData[squadIndex].textColor = getContrastColor(colorInput.value);
+        saveData();
+        modal.remove();
+      } else {
+        alert('Por favor ingresa un código HEX válido (ejemplo: #FF5733)');
+      }
+    });
+    
+    customSection.querySelector('#clearCustomColor').addEventListener('click', function() {
+      colorInput.value = '';
+      colorPreview.style.backgroundColor = '#fff';
+      colorPreview.style.color = '#000';
+      colorPreview.textContent = 'Previsualización';
+    });
   }
 
   function startEditingSquadName(element, squadIndex) {
@@ -556,39 +565,53 @@ async function handleLogin(email, password) {
     });
   }
 
-  function startEditingRank(element, squadIndex, memberType) {
-    // No permitir editar el rango del coronel
-    if (memberType === 'colonel') {
-      return;
-    }
-
-    const currentRank = appState.squadsData[squadIndex].members[parseInt(memberType)].rank;
+  function startEditingRank(element, squadIndex, memberIndex) {
+    const currentRank = appState.squadsData[squadIndex].members[memberIndex].rank;
     
-    element.setAttribute('data-value', currentRank);
+    // Crear contenedor para el select
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '0';
+    container.style.top = '0';
+    container.style.width = '100%';
+    container.style.height = '100%';
+    container.style.zIndex = '10';
     
-    let options = '';
+    // Crear el select
+    const select = document.createElement('select');
+    select.style.width = '100%';
+    select.style.height = '100%';
+    select.style.padding = '8px';
+    select.style.border = '1px solid #3498db';
+    select.style.borderRadius = '4px';
+    select.style.backgroundColor = 'white';
+    select.style.fontSize = 'inherit';
+    
+    // Añadir opciones
     ranks.forEach(rank => {
-      options += `<option value="${rank}" ${rank === currentRank ? 'selected' : ''}>${rank}</option>`;
+      const option = document.createElement('option');
+      option.value = rank;
+      option.textContent = rank;
+      if (rank === currentRank) option.selected = true;
+      select.appendChild(option);
     });
     
-    element.innerHTML = `
-      <select onblur="this.dispatchEvent(new Event('change'))">
-        ${options}
-      </select>
-    `;
-    const select = element.querySelector('select');
-    
-    setTimeout(() => {
-      select.focus();
-      select.size = select.length > 5 ? 5 : select.length;
-    }, 0);
-    
+    // Manejar cambios
     select.addEventListener('change', () => {
-      const newRank = select.value;
-      element.setAttribute('data-value', newRank);
-      appState.squadsData[squadIndex].members[parseInt(memberType)].rank = newRank;
+      appState.squadsData[squadIndex].members[memberIndex].rank = select.value;
       saveData();
+      renderTable();
     });
+    
+    // Manejar pérdida de foco
+    select.addEventListener('blur', () => {
+      renderTable();
+    });
+    
+    container.appendChild(select);
+    element.innerHTML = '';
+    element.appendChild(container);
+    select.focus();
   }
 
   // ========= EVENT LISTENERS =========
