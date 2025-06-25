@@ -1,5 +1,3 @@
-/* styles.css - Versión Final Corregida */
-
 body {
   font-family: Arial, sans-serif;
   margin: 0;
@@ -423,4 +421,25 @@ button:hover {
 td:empty::before {
     content: " ";
     display: inline-block;
+}
+
+.general-row {
+    background-color: #2c3e50 !important;
+    color: white !important;
+    font-weight: bold;
+}
+
+.general-row input[type="number"] {
+    background-color: rgba(255,255,255,0.1);
+    color: white;
+    border-color: rgba(255,255,255,0.3);
+}
+
+.general-row input[type="number"]:focus {
+    background-color: rgba(255,255,255,0.2);
+    outline: 2px solid white;
+}
+
+#squadsTable tbody tr:first-child {
+    border-bottom: 3px solid #7f8c8d;
 }
