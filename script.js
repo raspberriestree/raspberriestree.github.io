@@ -468,18 +468,19 @@ document.addEventListener('DOMContentLoaded', function() {
         </thead>
         <tbody>
         <!-- Fila del General -->`;
-    tableHTML += `
-      <tr class="general-row" style="background-color: #2c3e50; color: white; font-weight: bold;">
-        <td colspan="2" ${isEditMode ? 'class="editable-name"' : ''} data-type="general-name">${appState.generalStats.name}</td>
-        <td>General</td>
-        <td><input type="number" value="${appState.generalStats.kills}" min="0" data-type="general-kills" 
-            ${!isEditMode ? 'class="readonly-input" readonly' : ''}></td>
-        <td><input type="number" value="${appState.generalStats.deaths}" min="0" data-type="general-deaths" 
-            ${!isEditMode ? 'class="readonly-input" readonly' : ''}></td>
-        <td><input type="number" value="${appState.generalStats.missions}" min="0" data-type="general-missions" 
-            ${!isEditMode ? 'class="readonly-input" readonly' : ''}></td>
-        ${isEditMode ? '<td></td>' : ''}
-      </tr>`;
+      tableHTML += `
+        <tr class="general-row" style="background-color: #2c3e50; color: white; font-weight: bold;">
+          <td>-</td>
+          <td ${isEditMode ? 'class="editable-name"' : ''} data-type="general-name">${appState.generalStats.name}</td>
+          <td>General</td>
+          <td><input type="number" value="${appState.generalStats.kills}" min="0" data-type="general-kills" 
+              ${!isEditMode ? 'class="readonly-input" readonly' : ''}></td>
+          <td><input type="number" value="${appState.generalStats.deaths}" min="0" data-type="general-deaths" 
+              ${!isEditMode ? 'class="readonly-input" readonly' : ''}></td>
+          <td><input type="number" value="${appState.generalStats.missions}" min="0" data-type="general-missions" 
+              ${!isEditMode ? 'class="readonly-input" readonly' : ''}></td>
+          ${isEditMode ? '<td></td>' : ''}
+        </tr>`;
 
     appState.squadsData.forEach((squad, squadIndex) => {
       // Fila del coronel
