@@ -172,6 +172,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Procesar datos recibidos
         appState.squadsData = data.squadsData || [];
         appState.totalMissionsOverride = data.totalMissionsOverride || null;
+        appState.generalStats = data.generalStats || {
+          name: "General",
+          kills: 0,
+          deaths: 0,
+          missions: 0
+        };
         
         // Actualizar localStorage como caché
         localStorage.setItem('squadsDataBackup', JSON.stringify({
@@ -249,6 +255,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const dataToSave = {
           squadsData: appState.squadsData,
           totalMissionsOverride: appState.totalMissionsOverride,
+          generalStats: appState.generalStats,
           lastUpdated: new Date().toISOString()
       };
 
@@ -598,7 +605,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.querySelectorAll('[data-type="general-name"]').forEach(el => {
       el.addEventListener('click', function() {
-        if (appState.currentUser.role === 'admin' && !appState.isViewOnlyMode) {
+        if (appState.currentUser?.role === 'admin' && !appState.isViewOnlyMode) {
           startEditingGeneralName(this);
         }
       });
@@ -819,22 +826,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function startEditingGeneralName(element) {
     const currentName = appState.generalStats.name;
+    
+    // Guardar el contenido original para restaurar si se cancela
+    const originalContent = element.innerHTML;
+    
     element.innerHTML = `<input type="text" value="${currentName}" style="width: 90%;">`;
     const input = element.querySelector('input');
     input.focus();
     
-    const finishEditing = () => {
-      const newName = input.value.trim();
-      if (newName && newName !== currentName) {
-        appState.generalStats.name = newName;
-        saveData();
+    const finishEditing = (saveChanges) => {
+      if (saveChanges) {
+        const newName = input.value.trim();
+        if (newName && newName !== currentName) {
+          appState.generalStats.name = newName;
+          saveData();
+        }
       }
-      renderTable();
+      renderTable(); // Vuelve a renderizar la tabla en cualquier caso
     };
     
-    input.addEventListener('blur', finishEditing);
+    // Guardar al hacer blur o presionar Enter
+    input.addEventListener('blur', () => finishEditing(true));
     input.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') finishEditing();
+      if (e.key === 'Enter') finishEditing(true);
+    });
+    
+    // También podrías agregar manejo de la tecla Escape para cancelar
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') finishEditing(false);
     });
   }
 
