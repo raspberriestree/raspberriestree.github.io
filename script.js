@@ -595,7 +595,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
 
-    document.querySelectorAll('td[data-type="general-name"]').forEach(el => {
+    document.querySelectorAll('[data-type="general-name"]').forEach(el => {
       el.addEventListener('click', function() {
         if (appState.currentUser.role === 'admin' && !appState.isViewOnlyMode) {
           startEditingGeneralName(this);
