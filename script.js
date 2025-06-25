@@ -467,18 +467,19 @@ document.addEventListener('DOMContentLoaded', function() {
           </tr>
         </thead>
         <tbody>
-        <!-- Fila del General -->
-        <tr class="general-row" style="background-color: #2c3e50; color: white; font-weight: bold;">
-          <td colspan="2">${appState.generalStats.name}</td>
-          <td>General</td>
-          <td><input type="number" value="${appState.generalStats.kills}" min="0" data-type="general-kills" 
-              ${!isEditMode ? 'class="readonly-input" readonly' : ''}></td>
-          <td><input type="number" value="${appState.generalStats.deaths}" min="0" data-type="general-deaths" 
-              ${!isEditMode ? 'class="readonly-input" readonly' : ''}></td>
-          <td><input type="number" value="${appState.generalStats.missions}" min="0" data-type="general-missions" 
-              ${!isEditMode ? 'class="readonly-input" readonly' : ''}></td>
-          ${isEditMode ? '<td></td>' : ''}
-        </tr>`;
+        <!-- Fila del General -->`;
+    tableHTML += `
+      <tr class="general-row" style="background-color: #2c3e50; color: white; font-weight: bold;">
+        <td colspan="2" ${isEditMode ? 'class="editable-name"' : ''} data-type="general-name">${appState.generalStats.name}</td>
+        <td>General</td>
+        <td><input type="number" value="${appState.generalStats.kills}" min="0" data-type="general-kills" 
+            ${!isEditMode ? 'class="readonly-input" readonly' : ''}></td>
+        <td><input type="number" value="${appState.generalStats.deaths}" min="0" data-type="general-deaths" 
+            ${!isEditMode ? 'class="readonly-input" readonly' : ''}></td>
+        <td><input type="number" value="${appState.generalStats.missions}" min="0" data-type="general-missions" 
+            ${!isEditMode ? 'class="readonly-input" readonly' : ''}></td>
+        ${isEditMode ? '<td></td>' : ''}
+      </tr>`;
 
     appState.squadsData.forEach((squad, squadIndex) => {
       // Fila del coronel
@@ -591,6 +592,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const value = parseInt(this.value) || 0;
         appState.generalStats[statType] = value;
         saveData();
+      });
+    });
+
+    document.querySelectorAll('td[data-type="general-name"]').forEach(el => {
+      el.addEventListener('click', function() {
+        if (appState.currentUser.role === 'admin' && !appState.isViewOnlyMode) {
+          startEditingGeneralName(this);
+        }
       });
     });
   }
@@ -804,6 +813,27 @@ document.addEventListener('DOMContentLoaded', function() {
       element.setAttribute('data-value', newRank);
       appState.squadsData[squadIndex].members[parseInt(memberType)].rank = newRank;
       saveData();
+    });
+  }
+
+  function startEditingGeneralName(element) {
+    const currentName = appState.generalStats.name;
+    element.innerHTML = `<input type="text" value="${currentName}" style="width: 90%;">`;
+    const input = element.querySelector('input');
+    input.focus();
+    
+    const finishEditing = () => {
+      const newName = input.value.trim();
+      if (newName && newName !== currentName) {
+        appState.generalStats.name = newName;
+        saveData();
+      }
+      renderTable();
+    };
+    
+    input.addEventListener('blur', finishEditing);
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') finishEditing();
     });
   }
 
