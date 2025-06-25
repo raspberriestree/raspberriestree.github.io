@@ -483,8 +483,8 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="global-totals">
         <h3>Totales Generales</h3>
         <div class="totals-grid">
-          <div>Total Asesinatos: <span>${combatTotal.kills}</span></div>
-          <div>Total Muertes: <span>${combatTotal.deaths}</span></div>
+          <div>Total Asesinatos: <span>${totals.kills}</span></div>
+          <div>Total Muertes: <span>${totals.deaths}</span></div>
           <div>Total Misiones: 
             <input type="number" value="${displayMissions}" min="0" id="totalMissionsInput" 
             ${!isEditMode ? 'class="readonly-input" readonly' : ''}>
