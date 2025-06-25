@@ -1,4 +1,4 @@
-// Configuración de Firebase (debes crear firebase-config.js)
+// Configuración de Firebase
 import { firebaseConfig } from './firebase-config.js';
 
 // Importaciones de Firebase
@@ -23,7 +23,7 @@ const auth = getAuth(app);
 
 document.addEventListener('DOMContentLoaded', function() {
   // Rangos disponibles
-  const ranks = ['Cadete', 'Cabo', 'Cabo Primero', 'Sargento', 'Teniente', 'Teniente Primero', 'Coronel'];
+  const ranks = [' - ', 'Cadete', 'Cabo', 'Cabo Primero', 'Sargento', 'Teniente', 'Teniente Primero', 'Coronel'];
 
   // Colores para escuadrones
   const squadColors = [
@@ -53,14 +53,20 @@ document.addEventListener('DOMContentLoaded', function() {
     saveDataBtn: document.getElementById('saveData'),
     loadDataBtn: document.getElementById('loadData')
   };
-  
-  // Estado de la aplicación
+    
+    // Estado de la aplicación
   const appState = {
     squadsData: [],
     currentUser: null,
     isViewOnlyMode: false,
     currentlyEditing: null,
-    totalMissionsOverride: null
+    totalMissionsOverride: null,
+    generalStats: {
+      name: "General",
+      kills: 0,
+      deaths: 0,
+      missions: 0
+    }
   };
 
   // ========= FUNCIONES UTILITARIAS =========
@@ -150,68 +156,68 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // ========= MANEJO DE DATOS =========
-async function loadInitialData() {
-  try {
-    console.log("Intentando cargar datos desde Firebase...");
-    
-    // 1. Intento de carga desde Firebase
-    const docRef = doc(db, "militaryData", "squads");
-    const docSnap = await getDoc(docRef);
-    
-    if (docSnap.exists()) {
-      console.log("Datos encontrados en Firebase");
-      const data = docSnap.data();
-      
-      // Procesar datos recibidos
-      appState.squadsData = data.squadsData || [];
-      appState.totalMissionsOverride = data.totalMissionsOverride || null;
-      
-      // Actualizar localStorage como caché
-      localStorage.setItem('squadsDataBackup', JSON.stringify({
-        squadsData: appState.squadsData,
-        totalMissionsOverride: appState.totalMissionsOverride,
-        lastUpdated: new Date().toISOString()
-      }));
-      
-      // Configurar listener en tiempo real con manejo de errores
-      setupRealtimeListener(docRef);
-      
-    } else {
-      console.log("No existe documento en Firebase, creando uno nuevo");
-      await initializeFirebaseData();
-    }
-    
-    renderTable();
-    
-  } catch (firebaseError) {
-    console.error("Error al cargar desde Firebase:", firebaseError);
-    
-    // 2. Fallback: Intentar cargar desde localStorage
+    // ========= MANEJO DE DATOS =========
+  async function loadInitialData() {
     try {
-      const localData = localStorage.getItem('squadsDataBackup');
-      if (localData) {
-        const parsedData = JSON.parse(localData);
-        console.log("Cargando datos desde caché local");
+      console.log("Intentando cargar datos desde Firebase...");
+      
+      // 1. Intento de carga desde Firebase
+      const docRef = doc(db, "militaryData", "squads");
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        console.log("Datos encontrados en Firebase");
+        const data = docSnap.data();
         
-        appState.squadsData = parsedData.squadsData || [];
-        appState.totalMissionsOverride = parsedData.totalMissionsOverride || null;
+        // Procesar datos recibidos
+        appState.squadsData = data.squadsData || [];
+        appState.totalMissionsOverride = data.totalMissionsOverride || null;
         
-        renderTable();
-        showTemporaryMessage("Usando datos locales (última versión guardada)");
-        return;
+        // Actualizar localStorage como caché
+        localStorage.setItem('squadsDataBackup', JSON.stringify({
+          squadsData: appState.squadsData,
+          totalMissionsOverride: appState.totalMissionsOverride,
+          lastUpdated: new Date().toISOString()
+        }));
+        
+        // Configurar listener en tiempo real con manejo de errores
+        setupRealtimeListener(docRef);
+        
+      } else {
+        console.log("No existe documento en Firebase, creando uno nuevo");
+        await initializeFirebaseData();
       }
-    } catch (localError) {
-      console.error("Error al cargar desde localStorage:", localError);
+      
+      renderTable();
+      
+    } catch (firebaseError) {
+      console.error("Error al cargar desde Firebase:", firebaseError);
+      
+      // 2. Fallback: Intentar cargar desde localStorage
+      try {
+        const localData = localStorage.getItem('squadsDataBackup');
+        if (localData) {
+          const parsedData = JSON.parse(localData);
+          console.log("Cargando datos desde caché local");
+          
+          appState.squadsData = parsedData.squadsData || [];
+          appState.totalMissionsOverride = parsedData.totalMissionsOverride || null;
+          
+          renderTable();
+          showTemporaryMessage("Usando datos locales (última versión guardada)");
+          return;
+        }
+      } catch (localError) {
+        console.error("Error al cargar desde localStorage:", localError);
+      }
+      
+      // 3. Fallback final: Cargar datos por defecto
+      console.log("Cargando datos por defecto");
+      loadDefaultData();
+      renderTable();
+      showTemporaryMessage("Error al conectar con el servidor. Usando datos de ejemplo.");
     }
-    
-    // 3. Fallback final: Cargar datos por defecto
-    console.log("Cargando datos por defecto");
-    loadDefaultData();
-    renderTable();
-    showTemporaryMessage("Error al conectar con el servidor. Usando datos de ejemplo.");
   }
-}
 
   function loadDefaultData() {
     appState.squadsData = [
@@ -230,59 +236,65 @@ async function loadInitialData() {
       }
     ];
     appState.totalMissionsOverride = null;
+    appState.generalStats = {
+      name: "General",
+      kills: 0,
+      deaths: 0,
+      missions: 0
+    };
   }
 
-    async function saveData() {
-        // Preparar datos para guardar
-        const dataToSave = {
-            squadsData: appState.squadsData,
-            totalMissionsOverride: appState.totalMissionsOverride,
-            lastUpdated: new Date().toISOString()
-        };
-    
-        try {
-            // 1. Intento de guardar en Firebase
-            console.log("Intentando guardar en Firebase...");
-            await setDoc(doc(db, "militaryData", "squads"), dataToSave);
-            console.log("Datos guardados exitosamente en Firebase");
-        
-            // 2. Actualizar caché local
-            localStorage.setItem('squadsDataBackup', JSON.stringify(dataToSave));
-            console.log("Datos guardados en caché local");
-            
-            // Mostrar notificación de éxito
-            showTemporaryMessage("Datos guardados exitosamente", "success");
-        
-        } catch (firebaseError) {
-            console.error("Error al guardar en Firebase:", firebaseError);
-            
-            // 3. Fallback: Guardar localmente
-            try {
-            localStorage.setItem('squadsDataBackup', JSON.stringify(dataToSave));
-            console.log("Datos guardados localmente como fallback");
-                
-            // Mostrar advertencia
-            showTemporaryMessage(
-                "Datos guardados localmente. Se sincronizarán cuando se restablezca la conexión.", 
-                "warning"
-            );
-        
-            // Programar reintento
-            if (!appState.pendingSync) {
-                appState.pendingSync = true;
-                setTimeout(retryPendingSync, 30000); // Reintentar en 30 segundos
-            }
-        
-            } catch (localError) {
-            console.error("Error al guardar en localStorage:", localError);
-            showTemporaryMessage("Error al guardar los datos", "error");
-            }
-        }
-    }
+  async function saveData() {
+      // Preparar datos para guardar
+      const dataToSave = {
+          squadsData: appState.squadsData,
+          totalMissionsOverride: appState.totalMissionsOverride,
+          lastUpdated: new Date().toISOString()
+      };
 
-    // ===== FUNCIONES AUXILIARES =====
+      try {
+          // 1. Intento de guardar en Firebase
+          console.log("Intentando guardar en Firebase...");
+          await setDoc(doc(db, "militaryData", "squads"), dataToSave);
+          console.log("Datos guardados exitosamente en Firebase");
+      
+          // 2. Actualizar caché local
+          localStorage.setItem('squadsDataBackup', JSON.stringify(dataToSave));
+          console.log("Datos guardados en caché local");
+          
+          // Mostrar notificación de éxito
+          showTemporaryMessage("Datos guardados exitosamente", "success");
+      
+      } catch (firebaseError) {
+          console.error("Error al guardar en Firebase:", firebaseError);
+          
+          // 3. Fallback: Guardar localmente
+          try {
+          localStorage.setItem('squadsDataBackup', JSON.stringify(dataToSave));
+          console.log("Datos guardados localmente como fallback");
+              
+          // Mostrar advertencia
+          showTemporaryMessage(
+              "Datos guardados localmente. Se sincronizarán cuando se restablezca la conexión.", 
+              "warning"
+          );
+      
+          // Programar reintento
+          if (!appState.pendingSync) {
+              appState.pendingSync = true;
+              setTimeout(retryPendingSync, 30000); // Reintentar en 30 segundos
+          }
+      
+          } catch (localError) {
+          console.error("Error al guardar en localStorage:", localError);
+          showTemporaryMessage("Error al guardar los datos", "error");
+          }
+      }
+  }
 
-    async function initializeFirebaseData() {
+  // ===== FUNCIONES AUXILIARES =====
+
+  async function initializeFirebaseData() {
     const initialData = {
         squadsData: [
         {
@@ -300,106 +312,112 @@ async function loadInitialData() {
         }
         ],
         totalMissionsOverride: null,
+        generalStats: {
+          name: "General",
+          kills: 0,
+          deaths: 0,
+          missions: 0
+        },
         createdAt: new Date().toISOString()
     };
-    
+
     await setDoc(doc(db, "militaryData", "squads"), initialData);
     appState.squadsData = initialData.squadsData;
-    }
+  }
 
-    function setupRealtimeListener(docRef) {
-        // Limpiar listener anterior si existe
-        if (appState.unsubscribeSnapshot) {
-            appState.unsubscribeSnapshot();
-        }
-        
-        appState.unsubscribeSnapshot = onSnapshot(docRef, 
-            (doc) => {
-            if (doc.exists()) {
-                    const data = doc.data();
-                    console.log("Cambios recibidos en tiempo real");
-                    
-                    appState.squadsData = data.squadsData || [];
-                    appState.totalMissionsOverride = data.totalMissionsOverride || null;
-                    
-                    // Actualizar caché local
-                    localStorage.setItem('squadsDataBackup', JSON.stringify({
-                    squadsData: appState.squadsData,
-                    totalMissionsOverride: appState.totalMissionsOverride,
-                    lastUpdated: new Date().toISOString()
-                    }));
-                    
-                    renderTable();
-                }
-            },
-            (error) => {
-                console.error("Error en listener en tiempo real:", error);
+  function setupRealtimeListener(docRef) {
+    // Limpiar listener anterior si existe
+    if (appState.unsubscribeSnapshot) {
+        appState.unsubscribeSnapshot();
+    }
+    
+    appState.unsubscribeSnapshot = onSnapshot(docRef, 
+        (doc) => {
+        if (doc.exists()) {
+                const data = doc.data();
+                console.log("Cambios recibidos en tiempo real");
                 
-                if (error.code === 'permission-denied') {
-                    showTemporaryMessage("Se perdieron los permisos. Por favor inicia sesión nuevamente.", "error");
-                    handleLogout();
-                } else {
-                    showTemporaryMessage("Error en conexión en tiempo real. Usando datos locales.", "warning");
-                }
+                appState.squadsData = data.squadsData || [];
+                appState.totalMissionsOverride = data.totalMissionsOverride || null;
+                
+                // Actualizar caché local
+                localStorage.setItem('squadsDataBackup', JSON.stringify({
+                squadsData: appState.squadsData,
+                totalMissionsOverride: appState.totalMissionsOverride,
+                lastUpdated: new Date().toISOString()
+                }));
+                
+                renderTable();
             }
-        );
-    }
-
-    async function retryPendingSync() {
-        if (!appState.pendingSync) return;
-        
-        try {
-            const localData = localStorage.getItem('squadsDataBackup');
-            if (localData) {
-            const dataToSave = JSON.parse(localData);
-            await setDoc(doc(db, "militaryData", "squads"), dataToSave);
+        },
+        (error) => {
+            console.error("Error en listener en tiempo real:", error);
             
-            console.log("Datos pendientes sincronizados exitosamente");
-            appState.pendingSync = false;
-            showTemporaryMessage("Datos pendientes sincronizados con el servidor", "success");
+            if (error.code === 'permission-denied') {
+                showTemporaryMessage("Se perdieron los permisos. Por favor inicia sesión nuevamente.", "error");
+                handleLogout();
+            } else {
+                showTemporaryMessage("Error en conexión en tiempo real. Usando datos locales.", "warning");
             }
-        } catch (error) {
-            console.error("Error en reintento de sincronización:", error);
-            // Volver a programar reintento
-            setTimeout(retryPendingSync, 60000); // Reintentar en 1 minuto
         }
-    }
+    );
+  }
 
-    function showTemporaryMessage(message, type = "info") {
-        const messageDiv = document.createElement('div');
-        messageDiv.textContent = message;
-        messageDiv.style.position = 'fixed';
-        messageDiv.style.bottom = '20px';
-        messageDiv.style.right = '20px';
-        messageDiv.style.padding = '10px 20px';
-        messageDiv.style.borderRadius = '4px';
-        messageDiv.style.zIndex = '1000';
+  async function retryPendingSync() {
+    if (!appState.pendingSync) return;
     
-        switch (type) {
-            case "success":
-            messageDiv.style.backgroundColor = '#4CAF50';
-            messageDiv.style.color = 'white';
-            break;
-            case "error":
-            messageDiv.style.backgroundColor = '#f44336';
-            messageDiv.style.color = 'white';
-            break;
-            case "warning":
-            messageDiv.style.backgroundColor = '#ff9800';
-            messageDiv.style.color = 'white';
-            break;
-            default:
-            messageDiv.style.backgroundColor = '#2196F3';
-            messageDiv.style.color = 'white';
-        }
+    try {
+        const localData = localStorage.getItem('squadsDataBackup');
+        if (localData) {
+        const dataToSave = JSON.parse(localData);
+        await setDoc(doc(db, "militaryData", "squads"), dataToSave);
         
-        document.body.appendChild(messageDiv);
-    
-    // Auto-eliminar después de 5 segundos
-        setTimeout(() => {
-            messageDiv.remove();
-        }, 5000);
+        console.log("Datos pendientes sincronizados exitosamente");
+        appState.pendingSync = false;
+        showTemporaryMessage("Datos pendientes sincronizados con el servidor", "success");
+        }
+    } catch (error) {
+        console.error("Error en reintento de sincronización:", error);
+        // Volver a programar reintento
+        setTimeout(retryPendingSync, 60000); // Reintentar en 1 minuto
     }
+  }
+
+  function showTemporaryMessage(message, type = "info") {
+    const messageDiv = document.createElement('div');
+    messageDiv.textContent = message;
+    messageDiv.style.position = 'fixed';
+    messageDiv.style.bottom = '20px';
+    messageDiv.style.right = '20px';
+    messageDiv.style.padding = '10px 20px';
+    messageDiv.style.borderRadius = '4px';
+    messageDiv.style.zIndex = '1000';
+
+    switch (type) {
+        case "success":
+        messageDiv.style.backgroundColor = '#4CAF50';
+        messageDiv.style.color = 'white';
+        break;
+        case "error":
+        messageDiv.style.backgroundColor = '#f44336';
+        messageDiv.style.color = 'white';
+        break;
+        case "warning":
+        messageDiv.style.backgroundColor = '#ff9800';
+        messageDiv.style.color = 'white';
+        break;
+        default:
+        messageDiv.style.backgroundColor = '#2196F3';
+        messageDiv.style.color = 'white';
+    }
+    
+    document.body.appendChild(messageDiv);
+
+  // Auto-eliminar después de 5 segundos
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 5000);
+  }
 
   function calculateGlobalTotals() {
     let totalKills = 0;
@@ -417,7 +435,7 @@ async function loadInitialData() {
     return { kills: totalKills, deaths: totalDeaths, missions: totalMissions };
   }
 
-  // ========= RENDERIZADO DE TABLA =========
+    // ========= RENDERIZADO DE TABLA =========
   function renderTable() {
     if (!appState.currentUser) return;
 
@@ -448,7 +466,19 @@ async function loadInitialData() {
             ${isEditMode ? '<th>Acciones</th>' : ''}
           </tr>
         </thead>
-        <tbody>`;
+        <tbody>
+        <!-- Fila del General -->
+        <tr class="general-row" style="background-color: #2c3e50; color: white; font-weight: bold;">
+          <td colspan="2">${appState.generalStats.name}</td>
+          <td>General</td>
+          <td><input type="number" value="${appState.generalStats.kills}" min="0" data-type="general-kills" 
+              ${!isEditMode ? 'class="readonly-input" readonly' : ''}></td>
+          <td><input type="number" value="${appState.generalStats.deaths}" min="0" data-type="general-deaths" 
+              ${!isEditMode ? 'class="readonly-input" readonly' : ''}></td>
+          <td><input type="number" value="${appState.generalStats.missions}" min="0" data-type="general-missions" 
+              ${!isEditMode ? 'class="readonly-input" readonly' : ''}></td>
+          ${isEditMode ? '<td></td>' : ''}
+        </tr>`;
 
     appState.squadsData.forEach((squad, squadIndex) => {
       // Fila del coronel
@@ -554,6 +584,15 @@ async function loadInitialData() {
         startEditingRank(this, squadIndex, memberType);
       });
     });
+
+    document.querySelectorAll('input[data-type^="general-"]').forEach(input => {
+      input.addEventListener('change', function() {
+        const statType = this.dataset.type.replace('general-', '');
+        const value = parseInt(this.value) || 0;
+        appState.generalStats[statType] = value;
+        saveData();
+      });
+    });
   }
 
   // ========= FUNCIONES DE EDICIÓN =========
@@ -575,7 +614,7 @@ async function loadInitialData() {
       if (color.isCustom) {
         colorOptions += `
           <div style="padding: 10px; margin: 5px; border-radius: 4px; cursor: pointer; border: 1px dashed #ccc;"
-               onclick="window.applyCustomColorPrompt(${squadIndex})">
+                onclick="window.applyCustomColorPrompt(${squadIndex})">
             <div style="display: flex; align-items: center;">
               <div style="width: 20px; height: 20px; background: ${color.value || '#fff'}; border: 1px solid #000; margin-right: 10px;"></div>
               ${color.name} (HEX)
@@ -586,7 +625,7 @@ async function loadInitialData() {
           <div style="background: ${color.value}; color: ${color.textColor}; 
                       padding: 10px; margin: 5px; border-radius: 4px; cursor: pointer;
                       ${appState.squadsData[squadIndex].color === color.value ? 'border: 2px solid black;' : ''}"
-               onclick="window.applyColorChange(${squadIndex}, ${index})">
+                onclick="window.applyColorChange(${squadIndex}, ${index})">
             ${color.name}
           </div>`;
       }
@@ -622,8 +661,8 @@ async function loadInitialData() {
         <div style="margin-bottom: 10px;">
           <label style="display: block; margin-bottom: 5px;">Ingresa código HEX (ej: #FF5733):</label>
           <input type="text" id="customColorInput" placeholder="#RRGGBB" 
-                 style="padding: 8px; width: 100%; box-sizing: border-box;"
-                 pattern="^#[0-9A-Fa-f]{6}$" title="Formato HEX (ej: #FF5733)">
+                  style="padding: 8px; width: 100%; box-sizing: border-box;"
+                  pattern="^#[0-9A-Fa-f]{6}$" title="Formato HEX (ej: #FF5733)">
         </div>
         <div id="colorPreview" style="width: 100%; height: 40px; margin: 10px 0; border: 1px solid #ccc; 
                                     display: flex; align-items: center; justify-content: center;">
@@ -826,4 +865,5 @@ async function loadInitialData() {
 
   // Inicialización
   showWelcomeScreen();
+
 });
