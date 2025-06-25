@@ -183,6 +183,7 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.setItem('squadsDataBackup', JSON.stringify({
           squadsData: appState.squadsData,
           totalMissionsOverride: appState.totalMissionsOverride,
+          generalStats: appState.generalStats, // Añade esta línea
           lastUpdated: new Date().toISOString()
         }));
         
@@ -208,6 +209,12 @@ document.addEventListener('DOMContentLoaded', function() {
           
           appState.squadsData = parsedData.squadsData || [];
           appState.totalMissionsOverride = parsedData.totalMissionsOverride || null;
+          appState.generalStats = parsedData.generalStats || { // Añade esta línea
+            name: "General",
+            kills: 0,
+            deaths: 0,
+            missions: 0
+          };
           
           renderTable();
           showTemporaryMessage("Usando datos locales (última versión guardada)");
@@ -251,122 +258,130 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   async function saveData() {
-      // Preparar datos para guardar
-      const dataToSave = {
-          squadsData: appState.squadsData,
-          totalMissionsOverride: appState.totalMissionsOverride,
-          generalStats: appState.generalStats,
-          lastUpdated: new Date().toISOString()
-      };
+    // Preparar datos para guardar
+    const dataToSave = {
+      squadsData: appState.squadsData,
+      totalMissionsOverride: appState.totalMissionsOverride,
+      generalStats: appState.generalStats, // Asegurar que siempre se incluya
+      lastUpdated: new Date().toISOString()
+    };
 
+    try {
+      // 1. Intento de guardar en Firebase
+      console.log("Intentando guardar en Firebase...");
+      await setDoc(doc(db, "militaryData", "squads"), dataToSave);
+      console.log("Datos guardados exitosamente en Firebase");
+    
+      // 2. Actualizar caché local
+      localStorage.setItem('squadsDataBackup', JSON.stringify(dataToSave));
+      console.log("Datos guardados en caché local");
+      
+      // Mostrar notificación de éxito
+      showTemporaryMessage("Datos guardados exitosamente", "success");
+    
+    } catch (firebaseError) {
+      console.error("Error al guardar en Firebase:", firebaseError);
+      
+      // 3. Fallback: Guardar localmente
       try {
-          // 1. Intento de guardar en Firebase
-          console.log("Intentando guardar en Firebase...");
-          await setDoc(doc(db, "militaryData", "squads"), dataToSave);
-          console.log("Datos guardados exitosamente en Firebase");
-      
-          // 2. Actualizar caché local
-          localStorage.setItem('squadsDataBackup', JSON.stringify(dataToSave));
-          console.log("Datos guardados en caché local");
+        localStorage.setItem('squadsDataBackup', JSON.stringify(dataToSave));
+        console.log("Datos guardados localmente como fallback");
           
-          // Mostrar notificación de éxito
-          showTemporaryMessage("Datos guardados exitosamente", "success");
-      
-      } catch (firebaseError) {
-          console.error("Error al guardar en Firebase:", firebaseError);
-          
-          // 3. Fallback: Guardar localmente
-          try {
-          localStorage.setItem('squadsDataBackup', JSON.stringify(dataToSave));
-          console.log("Datos guardados localmente como fallback");
-              
-          // Mostrar advertencia
-          showTemporaryMessage(
-              "Datos guardados localmente. Se sincronizarán cuando se restablezca la conexión.", 
-              "warning"
-          );
-      
-          // Programar reintento
-          if (!appState.pendingSync) {
-              appState.pendingSync = true;
-              setTimeout(retryPendingSync, 30000); // Reintentar en 30 segundos
-          }
-      
-          } catch (localError) {
-          console.error("Error al guardar en localStorage:", localError);
-          showTemporaryMessage("Error al guardar los datos", "error");
-          }
+        // Mostrar advertencia
+        showTemporaryMessage(
+          "Datos guardados localmente. Se sincronizarán cuando se restablezca la conexión.", 
+          "warning"
+        );
+    
+        // Programar reintento
+        if (!appState.pendingSync) {
+          appState.pendingSync = true;
+          setTimeout(retryPendingSync, 30000); // Reintentar en 30 segundos
+        }
+    
+      } catch (localError) {
+        console.error("Error al guardar en localStorage:", localError);
+        showTemporaryMessage("Error al guardar los datos", "error");
       }
+    }
   }
 
   // ===== FUNCIONES AUXILIARES =====
 
   async function initializeFirebaseData() {
     const initialData = {
-        squadsData: [
+      squadsData: [
         {
-            name: "Escuadrón Alfa",
-            color: squadColors[0].value,
-            textColor: getContrastColor(squadColors[0].value),
-            colonel: "Coronel Rodríguez",
-            colonelRank: "Coronel",
-            members: [
+          name: "Escuadrón Alfa",
+          color: squadColors[0].value,
+          textColor: getContrastColor(squadColors[0].value),
+          colonel: "Coronel Rodríguez",
+          colonelRank: "Coronel",
+          members: [
             { name: "Soldado Pérez", rank: "Cabo", kills: 12, deaths: 2, missions: 15 },
             { name: "Soldado Gómez", rank: "Cabo Primero", kills: 8, deaths: 3, missions: 12 },
             { name: "Soldado López", rank: "Sargento", kills: 15, deaths: 1, missions: 18 },
             { name: "Soldado Martínez", rank: "Teniente", kills: 5, deaths: 4, missions: 10 }
-            ]
+          ]
         }
-        ],
-        totalMissionsOverride: null,
-        generalStats: {
-          name: "General",
-          kills: 0,
-          deaths: 0,
-          missions: 0
-        },
-        createdAt: new Date().toISOString()
+      ],
+      totalMissionsOverride: null,
+      generalStats: {
+        name: "General",
+        kills: 0,
+        deaths: 0,
+        missions: 0
+      },
+      createdAt: new Date().toISOString()
     };
 
     await setDoc(doc(db, "militaryData", "squads"), initialData);
     appState.squadsData = initialData.squadsData;
+    appState.generalStats = initialData.generalStats;
   }
 
   function setupRealtimeListener(docRef) {
     // Limpiar listener anterior si existe
     if (appState.unsubscribeSnapshot) {
-        appState.unsubscribeSnapshot();
+      appState.unsubscribeSnapshot();
     }
     
     appState.unsubscribeSnapshot = onSnapshot(docRef, 
-        (doc) => {
+      (doc) => {
         if (doc.exists()) {
-                const data = doc.data();
-                console.log("Cambios recibidos en tiempo real");
-                
-                appState.squadsData = data.squadsData || [];
-                appState.totalMissionsOverride = data.totalMissionsOverride || null;
-                
-                // Actualizar caché local
-                localStorage.setItem('squadsDataBackup', JSON.stringify({
-                squadsData: appState.squadsData,
-                totalMissionsOverride: appState.totalMissionsOverride,
-                lastUpdated: new Date().toISOString()
-                }));
-                
-                renderTable();
-            }
-        },
-        (error) => {
-            console.error("Error en listener en tiempo real:", error);
-            
-            if (error.code === 'permission-denied') {
-                showTemporaryMessage("Se perdieron los permisos. Por favor inicia sesión nuevamente.", "error");
-                handleLogout();
-            } else {
-                showTemporaryMessage("Error en conexión en tiempo real. Usando datos locales.", "warning");
-            }
+          const data = doc.data();
+          console.log("Cambios recibidos en tiempo real");
+          
+          appState.squadsData = data.squadsData || [];
+          appState.totalMissionsOverride = data.totalMissionsOverride || null;
+          appState.generalStats = data.generalStats || {
+            name: "General",
+            kills: 0,
+            deaths: 0,
+            missions: 0
+          };
+          
+          // Actualizar caché local
+          localStorage.setItem('squadsDataBackup', JSON.stringify({
+            squadsData: appState.squadsData,
+            totalMissionsOverride: appState.totalMissionsOverride,
+            generalStats: appState.generalStats,
+            lastUpdated: new Date().toISOString()
+          }));
+          
+          renderTable();
         }
+      },
+      (error) => {
+        console.error("Error en listener en tiempo real:", error);
+        
+        if (error.code === 'permission-denied') {
+          showTemporaryMessage("Se perdieron los permisos. Por favor inicia sesión nuevamente.", "error");
+          handleLogout();
+        } else {
+          showTemporaryMessage("Error en conexión en tiempo real. Usando datos locales.", "warning");
+        }
+      }
     );
   }
 
@@ -374,19 +389,24 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!appState.pendingSync) return;
     
     try {
-        const localData = localStorage.getItem('squadsDataBackup');
-        if (localData) {
+      const localData = localStorage.getItem('squadsDataBackup');
+      if (localData) {
         const dataToSave = JSON.parse(localData);
-        await setDoc(doc(db, "militaryData", "squads"), dataToSave);
+        // Asegurarse de incluir generalStats en los datos a guardar
+        const completeData = {
+          ...dataToSave,
+          generalStats: dataToSave.generalStats || appState.generalStats
+        };
+        await setDoc(doc(db, "militaryData", "squads"), completeData);
         
         console.log("Datos pendientes sincronizados exitosamente");
         appState.pendingSync = false;
         showTemporaryMessage("Datos pendientes sincronizados con el servidor", "success");
-        }
+      }
     } catch (error) {
-        console.error("Error en reintento de sincronización:", error);
-        // Volver a programar reintento
-        setTimeout(retryPendingSync, 60000); // Reintentar en 1 minuto
+      console.error("Error en reintento de sincronización:", error);
+      // Volver a programar reintento
+      setTimeout(retryPendingSync, 60000); // Reintentar en 1 minuto
     }
   }
 
@@ -838,6 +858,11 @@ document.addEventListener('DOMContentLoaded', function() {
       if (saveChanges) {
         const newName = input.value.trim();
         if (newName && newName !== currentName) {
+          if (newName.length < 2) {
+            alert("El nombre del general debe tener al menos 2 caracteres");
+            input.focus();
+            return;
+          }
           appState.generalStats.name = newName;
           saveData();
         }
@@ -851,7 +876,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (e.key === 'Enter') finishEditing(true);
     });
     
-    // También podrías agregar manejo de la tecla Escape para cancelar
+    // Manejo de la tecla Escape para cancelar
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') finishEditing(false);
     });
