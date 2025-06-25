@@ -447,20 +447,23 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function calculateGlobalTotals() {
-    //Incluir estadísticas generales y de escuadrones
-    let totalKills = appState.generalStats.kills || 0;
-    let totalDeaths = appState.generalStats.deaths || 0;
-    let totalMissions = appState.generalStats.missions || 0;
-    
+    // Iniciar con las estadísticas del General (solo kills y deaths)
+    let totals = {
+      kills: appState.generalStats.kills || 0,
+      deaths: appState.generalStats.deaths || 0,
+      missions: 0 // Las misiones se manejan independientemente
+    };
+
+    // Sumar estadísticas de todos los miembros de los escuadrones (solo kills y deaths)
     appState.squadsData.forEach(squad => {
       squad.members.forEach(member => {
-        totalKills += member.kills || 0;
-        totalDeaths += member.deaths || 0;
-        totalMissions += member.missions || 0;
+        totals.kills += member.kills || 0;
+        totals.deaths += member.deaths || 0;
+        
       });
     });
 
-    return { kills: totalKills, deaths: totalDeaths, missions: totalMissions };
+    return totals;
   }
 
     // ========= RENDERIZADO DE TABLA =========
@@ -470,14 +473,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const totals = calculateGlobalTotals();
     const isEditMode = appState.currentUser.role === 'admin' && !appState.isViewOnlyMode;
 
+    const displayMissions = appState.totalMissionsOverride !== null 
+    ? appState.totalMissionsOverride 
+    : appState.squadsData.reduce((sum, squad) => {
+        return sum + squad.members.reduce((squadSum, member) => squadSum + (member.missions || 0), 0);
+      }, 0);
+
     let tableHTML = `
       <div class="global-totals">
         <h3>Totales Generales</h3>
         <div class="totals-grid">
-          <div>Total Asesinatos: <span>${totals.kills}</span></div>
-          <div>Total Muertes: <span>${totals.deaths}</span></div>
+          <div>Total Asesinatos: <span>${combatTotal.kills}</span></div>
+          <div>Total Muertes: <span>${combatTotal.deaths}</span></div>
           <div>Total Misiones: 
-            <input type="number" value="${appState.totalMissionsOverride ?? totals.missions}" min="0" id="totalMissionsInput" 
+            <input type="number" value="${displayMissions}" min="0" id="totalMissionsInput" 
             ${!isEditMode ? 'class="readonly-input" readonly' : ''}>
           </div>
         </div>
@@ -554,21 +563,45 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function setupEditListeners() {
-    // Inputs numéricos
-    document.querySelectorAll('input[type="number"]').forEach(input => {
+    // Inputs numéricos para kills y deaths (incluyendo general)
+    document.querySelectorAll('input[data-type="kills"], input[data-type="deaths"], input[data-type^="general-kills"], input[data-type^="general-deaths"]').forEach(input => {
       input.addEventListener('change', function() {
         const squadIndex = parseInt(this.dataset.squad);
         const memberIndex = parseInt(this.dataset.member);
         const statType = this.dataset.type;
         const value = parseInt(this.value) || 0;
 
-        if (memberIndex >= 0) {
+        if (statType.startsWith('general-')) {
+          // Manejar estadísticas del General
+          const generalStat = statType.replace('general-', '');
+          appState.generalStats[generalStat] = value;
+        } else if (memberIndex >= 0) {
+          // Manejar miembros normales
           appState.squadsData[squadIndex].members[memberIndex][statType] = value;
-        } else if (this.id === 'totalMissionsInput') {
-          appState.totalMissionsOverride = value;
         }
-        saveData(); // Guarda automáticamente al cambiar valores
+        saveData();
       });
+    });
+
+    // Inputs de misiones de miembros (no incluye general)
+    document.querySelectorAll('input[data-type="missions"]:not([data-type^="general-"])').forEach(input => {
+      input.addEventListener('change', function() {
+        const squadIndex = parseInt(this.dataset.squad);
+        const memberIndex = parseInt(this.dataset.member);
+        const value = parseInt(this.value) || 0;
+
+        if (memberIndex >= 0) {
+          appState.squadsData[squadIndex].members[memberIndex].missions = value;
+        }
+        saveData();
+      });
+    });
+
+    // Input especial para misiones totales
+    document.getElementById('totalMissionsInput')?.addEventListener('change', function() {
+      const value = parseInt(this.value) || 0;
+      appState.totalMissionsOverride = value;
+      saveData();
     });
 
     // Botones de eliminar
@@ -615,15 +648,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
 
-    document.querySelectorAll('input[data-type^="general-"]').forEach(input => {
-      input.addEventListener('change', function() {
-        const statType = this.dataset.type.replace('general-', '');
-        const value = parseInt(this.value) || 0;
-        appState.generalStats[statType] = value;
-        saveData();
-      });
-    });
-
+    // Edición nombre del General
     document.querySelectorAll('[data-type="general-name"]').forEach(el => {
       el.addEventListener('click', function() {
         if (appState.currentUser?.role === 'admin' && !appState.isViewOnlyMode) {
