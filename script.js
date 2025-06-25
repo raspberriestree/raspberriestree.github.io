@@ -447,9 +447,10 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function calculateGlobalTotals() {
-    let totalKills = 0;
-    let totalDeaths = 0;
-    let totalMissions = 0;
+    //Incluir estadísticas generales y de escuadrones
+    let totalKills = appState.generalStats.kills || 0;
+    let totalDeaths = appState.generalStats.deaths || 0;
+    let totalMissions = appState.generalStats.missions || 0;
     
     appState.squadsData.forEach(squad => {
       squad.members.forEach(member => {
