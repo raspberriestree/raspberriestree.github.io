@@ -1,3 +1,5 @@
+/* styles.css - Versión Final Corregida */
+
 body {
   font-family: Arial, sans-serif;
   margin: 0;
@@ -442,4 +444,15 @@ td:empty::before {
 
 #squadsTable tbody tr:first-child {
     border-bottom: 3px solid #7f8c8d;
+}
+
+.general-row .editable-name input[type="text"] {
+  background-color: rgba(255,255,255,0.1);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.3);
+}
+
+.general-row .editable-name input[type="text"]:focus {
+  background-color: rgba(255,255,255,0.2);
+  outline: 2px solid white;
 }
