@@ -836,51 +836,38 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function startEditingRank(element, squadIndex, memberType) {
-    // No permitir editar el rango del coronel
-    if (memberType === 'colonel') {
-      return;
-    }
+    if (memberType === 'colonel') return;
 
     const currentRank = appState.squadsData[squadIndex].members[parseInt(memberType)].rank;
     
-    element.setAttribute('data-value', currentRank);
+    // Filtrar rangos para excluir "Coronel" de las opciones de soldados
+    const availableRanks = ranks.filter(rank => rank !== 'Coronel');
     
     let options = '';
-    ranks.forEach(rank => {
+    availableRanks.forEach(rank => {
       options += `<option value="${rank}" ${rank === currentRank ? 'selected' : ''}>${rank}</option>`;
     });
     
     element.innerHTML = `
-      <select style="
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 10;
-        background: white;
-        border: 2px solid #3498db;
-        border-radius: 4px;
-        padding: 5px;
-        box-sizing: border-box;
-      ">
+      <select onfocus="this.size=${availableRanks.length > 5 ? 5 : availableRanks.length};" 
+              onblur="this.size=0; this.dispatchEvent(new Event('change'))"
+              onchange="this.size=0">
         ${options}
       </select>
     `;
+    
     const select = element.querySelector('select');
+    
+    // Mostrar el dropdown inmediatamente
     select.focus();
-
+    select.size = availableRanks.length > 5 ? 5 : availableRanks.length;
+    
     select.addEventListener('change', () => {
       const newRank = select.value;
-      element.setAttribute('data-value', newRank);
       appState.squadsData[squadIndex].members[parseInt(memberType)].rank = newRank;
       saveData();
+      renderTable(); // Actualizar la tabla después del cambio
     });
-
-    select.addEventListener('blur', () => {
-      renderTable(); // Volver a renderizar la tabla al perder el foco
-    });
-
   }
 
   function startEditingGeneralName(element) {
