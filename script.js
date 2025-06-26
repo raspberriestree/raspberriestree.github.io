@@ -851,23 +851,36 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     element.innerHTML = `
-      <select onblur="this.dispatchEvent(new Event('change'))">
+      <select style="
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 10;
+        background: white;
+        border: 2px solid #3498db;
+        border-radius: 4px;
+        padding: 5px;
+        box-sizing: border-box;
+      ">
         ${options}
       </select>
     `;
     const select = element.querySelector('select');
-    
-    setTimeout(() => {
-      select.focus();
-      select.size = select.length > 5 ? 5 : select.length;
-    }, 0);
-    
+    select.focus();
+
     select.addEventListener('change', () => {
       const newRank = select.value;
       element.setAttribute('data-value', newRank);
       appState.squadsData[squadIndex].members[parseInt(memberType)].rank = newRank;
       saveData();
     });
+
+    select.addEventListener('blur', () => {
+      renderTable(); // Volver a renderizar la tabla al perder el foco
+    });
+
   }
 
   function startEditingGeneralName(element) {
