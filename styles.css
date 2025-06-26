@@ -330,7 +330,7 @@ button:hover {
   color: #333;
   cursor: pointer;
   z-index: 2;
-  opacity: 0; /* Hacemos el select transparente pero clickeable */
+  opacity: 0; /* Select transparente pero clickeable */
 }
 
 .editable-rank::after {
@@ -351,7 +351,7 @@ button:hover {
 
 /* Asegurar que el select permanezca abierto al hacer clic */
 .editable-rank select:focus {
-  opacity: 1; /* Hacemos visible el select cuando está enfocado */
+  opacity: 1; /* Select visible cuando está enfocado*/
   height: auto;
   min-height: 100%;
 }
@@ -472,4 +472,45 @@ td:empty::before {
 .general-row .editable-name input[type="text"]:focus {
   background-color: rgba(255,255,255,0.2);
   outline: 2px solid white;
+}
+
+.global-totals .missions-note {
+  font-size: 0.8em;
+  color: #7f8c8d;
+  margin-left: 5px;
+}
+
+.global-totals .totals-grid div {
+  position: relative;
+  padding-right: 10px;
+}
+
+.global-totals .totals-grid div span {
+  font-weight: bold;
+}
+
+.global-totals .totals-grid div::after {
+  content: attr(data-note);
+  font-size: 0.7em;
+  color: #7f8c8d;
+  position: absolute;
+  right: 10px;
+  bottom: 5px;
+}
+
+.editable-rank select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%233498db' d='M6 9l-4-4h8z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 12px;
+  padding-right: 25px;
+  cursor: pointer;
+}
+
+.editable-rank select:focus {
+  outline: 2px solid #3498db;
+  outline-offset: 2px;
 }
