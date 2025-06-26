@@ -499,18 +499,45 @@ td:empty::before {
 }
 
 .editable-rank select {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 8px 25px 8px 8px;
+  border: 1px solid #3498db;
+  border-radius: 4px;
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%233498db' d='M6 9l-4-4h8z'/%3E%3C/svg%3E");
+  background-color: white;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20d%3D%22M6%209l-4-4h8z%22%20fill%3D%22%233498db%22%2F%3E%3C%2Fsvg%3E");
   background-repeat: no-repeat;
   background-position: right 8px center;
   background-size: 12px;
-  padding-right: 25px;
+  font-size: inherit;
+  font-family: inherit;
+  color: #333;
   cursor: pointer;
+  z-index: 10;
+  opacity: 1 !important; /* Hacer visible permanentemente */
+}
+
+.editable-rank::after {
+  display: none; /* Ocultar el pseudo-elemento que mostraba el valor */
 }
 
 .editable-rank select:focus {
   outline: 2px solid #3498db;
   outline-offset: 2px;
+}
+
+.editable-rank select option {
+  padding: 6px 12px;
+}
+
+.editable-rank select:focus {
+  outline: 2px solid #3498db;
+  box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
 }
