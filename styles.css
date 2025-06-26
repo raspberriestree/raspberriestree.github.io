@@ -498,6 +498,12 @@ td:empty::before {
   bottom: 5px;
 }
 
+.editable-rank {
+  position: relative;
+  height: 100%;
+  min-height: 40px;
+}
+
 .editable-rank select {
   position: absolute;
   left: 0;
@@ -506,7 +512,7 @@ td:empty::before {
   height: 100%;
   margin: 0;
   padding: 8px 25px 8px 8px;
-  border: 1px solid #3498db;
+  border: 2px solid #3498db;
   border-radius: 4px;
   appearance: none;
   -webkit-appearance: none;
@@ -521,7 +527,6 @@ td:empty::before {
   color: #333;
   cursor: pointer;
   z-index: 10;
-  opacity: 1 !important; /* Hacer visible permanentemente */
 }
 
 .editable-rank::after {
@@ -529,12 +534,21 @@ td:empty::before {
 }
 
 .editable-rank select:focus {
-  outline: 2px solid #3498db;
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.5);
 }
 
 .editable-rank select option {
-  padding: 6px 12px;
+  padding: 8px;
+}
+
+.editable-rank select[size] {
+  height: auto;
+  min-height: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  background-image: none;
+  padding-right: 8px;
 }
 
 .editable-rank select:focus {
