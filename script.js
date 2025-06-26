@@ -836,38 +836,86 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function startEditingRank(element, squadIndex, memberType) {
-    if (memberType === 'colonel') return;
+      if (memberType === 'colonel') return;
 
-    const currentRank = appState.squadsData[squadIndex].members[parseInt(memberType)].rank;
-    
-    // Filtrar rangos para excluir "Coronel" de las opciones de soldados
-    const availableRanks = ranks.filter(rank => rank !== 'Coronel');
-    
-    let options = '';
-    availableRanks.forEach(rank => {
-      options += `<option value="${rank}" ${rank === currentRank ? 'selected' : ''}>${rank}</option>`;
-    });
-    
-    element.innerHTML = `
-      <select onfocus="this.size=${availableRanks.length > 5 ? 5 : availableRanks.length};" 
-              onblur="this.size=0; this.dispatchEvent(new Event('change'))"
-              onchange="this.size=0">
-        ${options}
-      </select>
-    `;
-    
-    const select = element.querySelector('select');
-    
-    // Mostrar el dropdown inmediatamente
-    select.focus();
-    select.size = availableRanks.length > 5 ? 5 : availableRanks.length;
-    
-    select.addEventListener('change', () => {
-      const newRank = select.value;
-      appState.squadsData[squadIndex].members[parseInt(memberType)].rank = newRank;
-      saveData();
-      renderTable(); // Actualizar la tabla después del cambio
-    });
+      const currentRank = appState.squadsData[squadIndex].members[parseInt(memberType)].rank;
+      
+      // Usar todos los rangos disponibles (excepto " - " que es el placeholder)
+      const availableRanks = ranks.filter(rank => rank !== ' - ');
+      
+      // Crear un div contenedor para el select
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '0';
+      container.style.top = '0';
+      container.style.width = '100%';
+      container.style.height = '100%';
+      container.style.zIndex = '1000';
+      
+      // Crear el elemento select
+      const select = document.createElement('select');
+      select.style.width = '100%';
+      select.style.height = '100%';
+      select.style.padding = '8px';
+      select.style.border = '2px solid #3498db';
+      select.style.borderRadius = '4px';
+      select.style.backgroundColor = 'white';
+      select.style.fontSize = 'inherit';
+      select.style.appearance = 'none';
+      select.style.cursor = 'pointer';
+      
+      // Añadir opciones al select
+      availableRanks.forEach(rank => {
+          const option = document.createElement('option');
+          option.value = rank;
+          option.textContent = rank;
+          if (rank === currentRank) {
+              option.selected = true;
+          }
+          select.appendChild(option);
+      });
+      
+      // Manejar el cambio de valor
+      select.addEventListener('change', () => {
+          const newRank = select.value;
+          appState.squadsData[squadIndex].members[parseInt(memberType)].rank = newRank;
+          saveData();
+          renderTable();
+      });
+      
+      // Manejar el blur (pérdida de foco)
+      select.addEventListener('blur', () => {
+          container.remove();
+          renderTable();
+      });
+      
+      // Manejar la tecla Escape
+      select.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+              container.remove();
+              renderTable();
+          }
+      });
+      
+      // Añadir el select al contenedor y este al elemento
+      container.appendChild(select);
+      element.innerHTML = '';
+      element.appendChild(container);
+      
+      // Enfocar el select inmediatamente
+      select.focus();
+      
+      // Mostrar todas las opciones abriendo el dropdown
+      select.size = availableRanks.length > 5 ? 5 : availableRanks.length;
+      
+      // Configurar para que vuelva al tamaño normal al perder el foco
+      select.addEventListener('focus', () => {
+          select.size = availableRanks.length > 5 ? 5 : availableRanks.length;
+      });
+      
+      select.addEventListener('blur', () => {
+          select.size = 1;
+      });
   }
 
   function startEditingGeneralName(element) {
