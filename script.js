@@ -161,7 +161,6 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       console.log("Intentando cargar datos desde Firebase...");
       
-      // 1. Intento de carga desde Firebase
       const docRef = doc(db, "militaryData", "squads");
       const docSnap = await getDoc(docRef);
       
@@ -183,11 +182,10 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.setItem('squadsDataBackup', JSON.stringify({
           squadsData: appState.squadsData,
           totalMissionsOverride: appState.totalMissionsOverride,
-          generalStats: appState.generalStats, // Añade esta línea
+          generalStats: appState.generalStats,
           lastUpdated: new Date().toISOString()
         }));
         
-        // Configurar listener en tiempo real con manejo de errores
         setupRealtimeListener(docRef);
         
       } else {
@@ -200,7 +198,6 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch (firebaseError) {
       console.error("Error al cargar desde Firebase:", firebaseError);
       
-      // 2. Fallback: Intentar cargar desde localStorage
       try {
         const localData = localStorage.getItem('squadsDataBackup');
         if (localData) {
@@ -224,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error("Error al cargar desde localStorage:", localError);
       }
       
-      // 3. Fallback final: Cargar datos por defecto
+      //Cargar datos por defecto
       console.log("Cargando datos por defecto");
       loadDefaultData();
       renderTable();
@@ -262,27 +259,26 @@ document.addEventListener('DOMContentLoaded', function() {
     const dataToSave = {
       squadsData: appState.squadsData,
       totalMissionsOverride: appState.totalMissionsOverride,
-      generalStats: appState.generalStats, // Asegurar que siempre se incluya
+      generalStats: appState.generalStats,
       lastUpdated: new Date().toISOString()
     };
 
     try {
-      // 1. Intento de guardar en Firebase
+     
       console.log("Intentando guardar en Firebase...");
       await setDoc(doc(db, "militaryData", "squads"), dataToSave);
       console.log("Datos guardados exitosamente en Firebase");
     
-      // 2. Actualizar caché local
+      // Actualizar caché local
       localStorage.setItem('squadsDataBackup', JSON.stringify(dataToSave));
       console.log("Datos guardados en caché local");
       
-      // Mostrar notificación de éxito
       showTemporaryMessage("Datos guardados exitosamente", "success");
     
     } catch (firebaseError) {
       console.error("Error al guardar en Firebase:", firebaseError);
       
-      // 3. Fallback: Guardar localmente
+      //Guardar localmente
       try {
         localStorage.setItem('squadsDataBackup', JSON.stringify(dataToSave));
         console.log("Datos guardados localmente como fallback");
@@ -392,7 +388,6 @@ document.addEventListener('DOMContentLoaded', function() {
       const localData = localStorage.getItem('squadsDataBackup');
       if (localData) {
         const dataToSave = JSON.parse(localData);
-        // Asegurarse de incluir generalStats en los datos a guardar
         const completeData = {
           ...dataToSave,
           generalStats: dataToSave.generalStats || appState.generalStats
@@ -1016,3 +1011,4 @@ document.addEventListener('DOMContentLoaded', function() {
   showWelcomeScreen();
 
 });
+
